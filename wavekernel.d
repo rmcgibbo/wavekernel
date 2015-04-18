@@ -797,4 +797,6 @@ wavekernel.o wavekernel.d: wavekernel.cc \
   /Users/rmcgibbo/Downloads/psi4.0b5/src/lib/libmints/angularmomentum.h \
   /Users/rmcgibbo/Downloads/psi4.0b5/src/lib/libmints/tracelessquadrupole.h \
   /Users/rmcgibbo/Downloads/psi4.0b5/src/lib/libmints/extern.h \
-  /Users/rmcgibbo/Downloads/psi4.0b5/src/lib/libmints/cdsalclist.h
+  /Users/rmcgibbo/Downloads/psi4.0b5/src/lib/libmints/cdsalclist.h \
+  /Users/rmcgibbo/Downloads/psi4.0b5/src/lib/libfock/cubature.h \
+  /Users/rmcgibbo/Downloads/psi4.0b5/src/lib/libfock/points.h
