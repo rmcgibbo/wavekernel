@@ -1,2 +1,6 @@
 wavekernel.o
 wavekernel.so
+pymodule.pyc
+__init__.pyc
+psi.timer.dat
+output.dat
