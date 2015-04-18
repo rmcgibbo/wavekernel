@@ -48,27 +48,42 @@ void sample_descriptors(Options& options) {
     boost::shared_ptr<RKSFunctions> properties = \
          boost::shared_ptr<RKSFunctions>(new RKSFunctions(basisset, max_points, max_functions));
     properties->set_ansatz(0);
-    properties->set_Cs(wfn->Ca());
-    // properties->set_pointers(D_AO);
+    SharedMatrix Ca = wfn->Ca();
+    properties->set_Cs(Ca);
 
-
+    // outfile->Printf("nirrep = %d", Ca->nirrep());
+    // for (int h = 0; h < Ca->nirrep(); h++) {
+    //     int nso = Ca->rowspi()[h];
+    //     int nmo = Ca->colspi()[h];
+    //     outfile->Printf("n_so=%d  n_mo=%d\n", nso, nmo);
+    // }
+    //
     const std::vector<boost::shared_ptr<BlockOPoints> >& blocks = grid->blocks();
-    outfile->Printf("Number of blocks: %lu\n", blocks.size());
-
+    // outfile->Printf("Number of blocks: %lu\n", blocks.size());
     for (size_t Q = 0; Q < blocks.size(); Q++) {
         boost::shared_ptr<BlockOPoints> block = blocks[Q];
-        int npoints = block->npoints();
-        double *restrict x = block->x();
-        double *restrict y = block->y();
-        double *restrict z = block->z();
-        double *restrict w = block->w();
-        outfile->Printf("Number of points in block: %d\n", npoints);
-        outfile->Printf("[%f %f %f]\n", x[0], y[0], z[0]);
+        // int npoints = block->npoints();
+        // double *restrict x = block->x();
+        // double *restrict y = block->y();
+        // double *restrict z = block->z();
+        // double *restrict w = block->w();
+        // outfile->Printf("Number of points in block: %d\n", npoints);
+        // outfile->Printf("[%f %f %f %f]\n", x[0], y[0], z[0], w[0]);
 
-        // properties->compute_functions(block);
-        // properties->compute_orbitals(block);
+        // const std::vector<int>& function_map = block->functions_local_to_global();
+        // int nglobal = max_functions;
+        // int nlocal  = function_map.size();
+        // outfile->Printf("n_local=%d n_global=%d\n", nlocal, nglobal);
+
+        properties->compute_orbitals(block);
+
+        // this is the object we want!
+        properties->orbital_value("PSI_A")->print();
+
+
         break;
     }
+
 
     // properties->point_value
 

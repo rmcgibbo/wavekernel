@@ -2,12 +2,15 @@ sys.path.insert(0, './..')
 import wavekernel
 
 molecule {
+symmetry c1
+
 O
 H 1 R
 H 1 R 2 A
 
 R = .9
 A = 104.5
+
 }
 
 set {
@@ -15,6 +18,7 @@ set {
   reference rhf
   dft_grid_name sg0
   dft_nuclear_scheme becke
+  DFT_BLOCK_MAX_POINTS 50
 }
 
 set wavekernel {
