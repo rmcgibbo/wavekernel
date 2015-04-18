@@ -28,20 +28,20 @@ int read_options(std::string name, Options& options)
 }
 
 void sample_descriptors(Options& options) {
-    fprintf(outfile, "WAVE KERNEL PLUGIN\n");
+    outfile->Printf("WAVE KERNEL PLUGIN\n");
     boost::shared_ptr<Molecule> molecule = Process::environment.molecule();
     boost::shared_ptr<Wavefunction> wfn = Process::environment.wavefunction();
     boost::shared_ptr<BasisSet> basisset = wfn->basisset();
 
     if(!wfn) {
-        fprintf(outfile, "SCF has not been run yet!\n");
+        outfile->Printf("SCF has not been run yet!\n");
         throw PSIEXCEPTION("SCF has not been run yet!\n");
     }
 
-    fprintf(outfile, "Building grid\n");
+    outfile->Printf("Building grid\n");
     boost::shared_ptr<DFTGrid> grid = boost::shared_ptr<DFTGrid>(new DFTGrid(molecule, basisset, options));
-    fprintf(outfile, "Done with grid!\n");
-    grid->print(outfile, 1);
+    // fprintf(outfile, "Done with grid!\n");
+    grid->print("outfile", 1);
 
     int max_points = grid->max_points();
     int max_functions = grid->max_functions();
@@ -53,7 +53,7 @@ void sample_descriptors(Options& options) {
 
 
     const std::vector<boost::shared_ptr<BlockOPoints> >& blocks = grid->blocks();
-    fprintf(outfile, "Number of blocks: %lu\n", blocks.size());
+    outfile->Printf("Number of blocks: %lu\n", blocks.size());
 
     for (size_t Q = 0; Q < blocks.size(); Q++) {
         boost::shared_ptr<BlockOPoints> block = blocks[Q];
@@ -62,8 +62,8 @@ void sample_descriptors(Options& options) {
         double *restrict y = block->y();
         double *restrict z = block->z();
         double *restrict w = block->w();
-        fprintf(outfile, "Number of points in block: %d\n", npoints);
-        fprintf(outfile, "[%f %f %f]\n", x[0], y[0], z[0]);
+        outfile->Printf("Number of points in block: %d\n", npoints);
+        outfile->Printf("[%f %f %f]\n", x[0], y[0], z[0]);
 
         // properties->compute_functions(block);
         // properties->compute_orbitals(block);
@@ -90,12 +90,12 @@ PsiReturnType wavekernel(Options& options)
         }
     }
     catch (psi::PsiException e) {
-        fprintf(outfile, "====== ERROR ====\n%s %d %s", e.what(), e.line(), e.location());
-        fprintf(outfile, "%s", e.what());
+        outfile->Printf( "====== ERROR ====\n%s %d %s", e.what(), e.line(), e.location());
+        outfile->Printf("%s", e.what());
         throw e;
     }
 
-    fprintf(outfile, "\nFINISHED WAVEKERNEL WITHOUT DEATH!\n");
+    outfile->Printf("\nFINISHED WAVEKERNEL WITHOUT DEATH!\n");
     return status;
 }
 
