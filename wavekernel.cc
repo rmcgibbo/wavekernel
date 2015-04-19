@@ -84,6 +84,10 @@ void sample_descriptors(Options& options) {
 
     shared_ptr<DFTGrid> grid = shared_ptr<DFTGrid>(new DFTGrid(molecule, primary, options));
     grid->print("outfile", 1);
+    const std::vector<shared_ptr<BlockOPoints> >& blocks = grid->blocks();
+    std::vector<std::vector<size_t> > block_indices = \
+        blocks_rand_subset(blocks, options.get_int("NUM_SAMPLE_DESCRIPTORS"));
+
     int max_points = grid->max_points();
     int max_functions = grid->max_functions();
 
@@ -91,20 +95,15 @@ void sample_descriptors(Options& options) {
     shared_ptr<PointFunctions> properties = \
          shared_ptr<PointFunctions>(new RKSFunctions(primary, max_points, max_functions));
     properties->set_ansatz(0);
-    SharedMatrix Ca = wfn->Ca();
-    properties->set_Cs(Ca);
+    properties->set_Cs(wfn->Ca());
 
     SharedMatrix blur = build_orbital_blur(wfn->epsilon_a(), options);
-    const std::vector<shared_ptr<BlockOPoints> >& blocks = grid->blocks();
-    std::vector<std::vector<size_t> > block_indices = \
-        blocks_rand_subset(blocks, options.get_int("NUM_SAMPLE_DESCRIPTORS"));
-
     SharedMatrix vm = shared_ptr<Matrix>(new Matrix("V_BLOCK", blur->rowspi(0), max_points));
 
     std::string fn = options.get_str("FILENAME");
     std::transform(fn.begin(), fn.end(), fn.begin(), ::tolower);
-
-    outfile->Printf("Writing wavekernel descriptors to %s\n", fn.c_str());
+    outfile->Printf("Writing %d wavekernel descriptors, v, to %s\n",
+        options.get_int("NUM_SAMPLE_DESCRIPTORS"), fn.c_str());
     FILE* fh = fopen(fn.c_str(), "a");
 
     for (size_t Q = 0; Q < blocks.size(); Q++) {
@@ -116,9 +115,11 @@ void sample_descriptors(Options& options) {
         vm->zero();
         vm->accumulate_product(blur, PsiA);
 
+
+        /* Print the selected random discriptor vectors from this block
+        */
         for (size_t i = 0; i < block_indices[Q].size(); i++) {
             SharedVector v = vm->get_column(0, block_indices[Q][i]);
-
             for (size_t j = 0; j < v->dim(0); j++) {
                 fprintf(fh, "%12.8f ", v->get(j));
             }
