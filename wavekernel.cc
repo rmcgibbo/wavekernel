@@ -1,3 +1,5 @@
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include <libplugin/plugin.h>
 #include <psi4-dec.h>
 #include <libparallel/parallel.h>
@@ -8,9 +10,13 @@
 #include <libfock/cubature.h>
 #include <libfock/points.h>
 
+#include "matrixutils.hpp"
+#include "utils.hpp"
+
 INIT_PLUGIN
 
 using std::string;
+using boost::shared_ptr;
 using namespace boost;
 
 namespace psi{ namespace wavekernel {
@@ -21,72 +27,101 @@ int read_options(std::string name, Options& options)
     if (name == "WAVEKERNEL"|| options.read_globals()) {
         /*- The amount of information printed to the output file -*/
         options.add_int("PRINT", 1);
+        options.add_double("E_DESCRIPTOR_MIN", -20);
+        options.add_double("E_DESCRIPTOR_MAX", 0);
+        options.add_int("E_DESCRIPTOR_NUM", 20);
+        options.add_double("E_DESCRIPTOR_SIGMA", 2);
         options.add_str("MODE", "", "Wave kernel plugin mode");
+        options.add_int("NUM_SAMPLE_DESCRIPTORS", 100);
+        options.add_str("DESCRIPTOR_FN", "descriptors.dat");
     }
 
     return true;
 }
 
+
+SharedMatrix build_orbital_blur(SharedVector epsilon, Options& options) {
+    shared_ptr<Wavefunction> wfn = Process::environment.wavefunction();
+
+    const int e_num = options.get_int("E_DESCRIPTOR_NUM");
+    const double e_min = options.get_double("E_DESCRIPTOR_MIN");
+    const double e_max = options.get_double("E_DESCRIPTOR_MAX");
+    const double sigma = options.get_double("E_DESCRIPTOR_SIGMA");
+    const double prefactor = 1 / (sigma * std::sqrt(2*M_PI));
+
+    SharedMatrix mixing = SharedMatrix(new Matrix("Orbital Mixing", e_num, wfn->nmo()));
+
+    // [TODO] assert that len(epsilon_a) == wfn->nmo();
+    // Do we want to always include all of the orbitals?
+    // Maybe we should include the virtual orbitals?
+    // [TODO]: Deal with unrestricted wavefunctions.
+
+    for (int i = 0; i < e_num; i++) {
+        double e_i = e_min + ((e_max - e_min) / (e_num-1)) * i;
+        // outfile->Printf("e_i[%d]=%f\n", i, e_i);
+
+        for (int j = 0; j < wfn->nmo(); j++) {
+            double exponent = -std::pow(epsilon->get(j) - e_i, 2) / (2*sigma*sigma);
+            double overlap = prefactor * std::exp(exponent);
+            mixing->set(i, j, overlap);
+        }
+
+    }
+    return mixing;
+}
+
+
 void sample_descriptors(Options& options) {
     outfile->Printf("WAVE KERNEL PLUGIN\n");
-    boost::shared_ptr<Molecule> molecule = Process::environment.molecule();
-    boost::shared_ptr<Wavefunction> wfn = Process::environment.wavefunction();
-    boost::shared_ptr<BasisSet> basisset = wfn->basisset();
+    shared_ptr<Molecule> molecule = Process::environment.molecule();
+    shared_ptr<Wavefunction> wfn = Process::environment.wavefunction();
+    shared_ptr<BasisSet> primary = wfn->basisset();
 
-    if(!wfn) {
+    if (!wfn) {
         outfile->Printf("SCF has not been run yet!\n");
         throw PSIEXCEPTION("SCF has not been run yet!\n");
     }
 
-    outfile->Printf("Building grid\n");
-    boost::shared_ptr<DFTGrid> grid = boost::shared_ptr<DFTGrid>(new DFTGrid(molecule, basisset, options));
-    // fprintf(outfile, "Done with grid!\n");
+    shared_ptr<DFTGrid> grid = shared_ptr<DFTGrid>(new DFTGrid(molecule, primary, options));
     grid->print("outfile", 1);
-
     int max_points = grid->max_points();
     int max_functions = grid->max_functions();
-    boost::shared_ptr<RKSFunctions> properties = \
-         boost::shared_ptr<RKSFunctions>(new RKSFunctions(basisset, max_points, max_functions));
+
+    // [TODO: deal with unrestricted wavefunctions]
+    shared_ptr<PointFunctions> properties = \
+         shared_ptr<PointFunctions>(new RKSFunctions(primary, max_points, max_functions));
     properties->set_ansatz(0);
     SharedMatrix Ca = wfn->Ca();
     properties->set_Cs(Ca);
 
-    // outfile->Printf("nirrep = %d", Ca->nirrep());
-    // for (int h = 0; h < Ca->nirrep(); h++) {
-    //     int nso = Ca->rowspi()[h];
-    //     int nmo = Ca->colspi()[h];
-    //     outfile->Printf("n_so=%d  n_mo=%d\n", nso, nmo);
-    // }
-    //
-    const std::vector<boost::shared_ptr<BlockOPoints> >& blocks = grid->blocks();
-    // outfile->Printf("Number of blocks: %lu\n", blocks.size());
-    for (size_t Q = 0; Q < blocks.size(); Q++) {
-        boost::shared_ptr<BlockOPoints> block = blocks[Q];
-        // int npoints = block->npoints();
-        // double *restrict x = block->x();
-        // double *restrict y = block->y();
-        // double *restrict z = block->z();
-        // double *restrict w = block->w();
-        // outfile->Printf("Number of points in block: %d\n", npoints);
-        // outfile->Printf("[%f %f %f %f]\n", x[0], y[0], z[0], w[0]);
+    SharedMatrix blur = build_orbital_blur(wfn->epsilon_a(), options);
+    const std::vector<shared_ptr<BlockOPoints> >& blocks = grid->blocks();
+    std::vector<std::vector<size_t> > block_indices = \
+        blocks_rand_subset(blocks, options.get_int("NUM_SAMPLE_DESCRIPTORS"));
 
-        // const std::vector<int>& function_map = block->functions_local_to_global();
-        // int nglobal = max_functions;
-        // int nlocal  = function_map.size();
-        // outfile->Printf("n_local=%d n_global=%d\n", nlocal, nglobal);
+    SharedMatrix vm = shared_ptr<Matrix>(new Matrix("V_BLOCK", blur->rowspi(0), max_points));
+
+    FILE* fh = fopen("vectors.dat", "a");
+
+    for (size_t Q = 0; Q < blocks.size(); Q++) {
+        shared_ptr<BlockOPoints> block = blocks[Q];
 
         properties->compute_orbitals(block);
+        SharedMatrix PsiA = properties->orbital_value("PSI_A");
+        inplace_element_square(PsiA);
+        vm->zero();
+        vm->accumulate_product(blur, PsiA);
 
-        // this is the object we want!
-        properties->orbital_value("PSI_A")->print();
+        for (size_t i = 0; i < block_indices[Q].size(); i++) {
+            SharedVector v = vm->get_column(0, block_indices[Q][i]);
 
-
-        break;
+            for (size_t j = 0; j < v->dim(0); j++) {
+                fprintf(fh, "%12.8f ", v->get(j));
+            }
+            fprintf(fh, "\n");
+        }
     }
-
-
-    // properties->point_value
-
+    fclose(fh);
 }
 
 

@@ -18,11 +18,11 @@ set {
   reference rhf
   dft_grid_name sg0
   dft_nuclear_scheme becke
-  DFT_BLOCK_MAX_POINTS 50
 }
 
 set wavekernel {
   print 1
+  descriptor_filename vectors.dat
 }
 
 energy('scf')
