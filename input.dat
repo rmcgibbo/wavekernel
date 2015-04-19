@@ -22,7 +22,7 @@ set {
 
 set wavekernel {
   print 1
-  descriptor_filename vectors.dat
+  filename vectors2.dat
 }
 
 energy('scf')

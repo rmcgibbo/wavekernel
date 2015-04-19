@@ -33,7 +33,7 @@ int read_options(std::string name, Options& options)
         options.add_double("E_DESCRIPTOR_SIGMA", 2);
         options.add_str("MODE", "", "Wave kernel plugin mode");
         options.add_int("NUM_SAMPLE_DESCRIPTORS", 100);
-        options.add_str("DESCRIPTOR_FN", "descriptors.dat");
+        options.add_str("FILENAME", "descriptors.dat");
     }
 
     return true;
@@ -101,7 +101,11 @@ void sample_descriptors(Options& options) {
 
     SharedMatrix vm = shared_ptr<Matrix>(new Matrix("V_BLOCK", blur->rowspi(0), max_points));
 
-    FILE* fh = fopen("vectors.dat", "a");
+    std::string fn = options.get_str("FILENAME");
+    std::transform(fn.begin(), fn.end(), fn.begin(), ::tolower);
+
+    outfile->Printf("Writing wavekernel descriptors to %s\n", fn.c_str());
+    FILE* fh = fopen(fn.c_str(), "a");
 
     for (size_t Q = 0; Q < blocks.size(); Q++) {
         shared_ptr<BlockOPoints> block = blocks[Q];
