@@ -35,12 +35,12 @@ NAME = $(shell basename `pwd`)
 CXXSRC = $(notdir $(wildcard *.cc))
 
 # Flags that were used to compile Psi4.
-CXX = /usr/bin/c++
+CXX = c++
 CXXDEFS = -DFC_SYMBOL=2 -DHAVE_SYSTEM_NATIVE_LAPACK -DHAVE_SYSTEM_NATIVE_BLAS -DHAS_CXX11_VARIADIC_TEMPLATES -DHAS_CXX11_STATIC_ASSERT -DHAS_CXX11_SIZEOF_MEMBER -DHAS_CXX11_RVALUE_REFERENCES -DHAS_CXX11_LIB_REGEX -DHAS_CXX11_NULLPTR -DHAS_CXX11_LONG_LONG -DHAS_CXX11_LAMBDA -DHAS_CXX11_INITIALIZER_LIST -DHAS_CXX11_DECLTYPE -DHAS_CXX11_CSTDINT_H -DHAS_CXX11_CONSTEXPR -DHAS_CXX11_AUTO_RET_TYPE -DHAS_CXX11_AUTO -DHAS_CXX11_FUNC -DHAS_CXX11 -DVAR_MFDS -DSYS_DARWIN
 CXXFLAGS = -DRESTRICT=__restrict__ -fPIC -std=c++11
 LDFLAGS = -Wl,-search_paths_first -Wl,-headerpad_max_install_names
-INCLUDES = -I/Users/rmcgibbo/projects/psi4public/obj/src/lib -I/Users/rmcgibbo/projects/psi4public/src/lib -I/Users/rmcgibbo/projects/psi4public/include -I/Users/rmcgibbo/projects/psi4public/obj/include -I/Users/rmcgibbo/projects/psi4public/obj/boost/include -I/Users/rmcgibbo/miniconda/include/python2.7 -I/usr/include
-OBJDIR = /Users/rmcgibbo/projects/psi4public/obj
+INCLUDES = -I$(PSI_OBJDIR)/src/lib -I$(PSI_SRCDIR)/src/lib -I$(PSI_SRCDIR)/include -I$(PSI_OBJDIR)/include -I$(PSI_OBJDIR)/boost/include -I$(PSI_PYTHON_INCLUDE) -I/usr/include
+OBJDIR = $(PSI_OBJDIR)
 
 # Used to determine linking flags.
 UNAME = $(shell uname)
