@@ -15,13 +15,13 @@ A = 104.5
 set {
   basis sto-3g
   reference rhf
-  dft_grid_name sg0
-  dft_nuclear_scheme becke
+  # dft_grid_name sg0
+
 }
 
 
 set wavekernel {
-  filename vectors2.npy
+  filename vectors.npy
   # mode sample_v
   mode calculate_x
 }

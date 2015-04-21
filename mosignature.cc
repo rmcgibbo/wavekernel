@@ -12,15 +12,15 @@ namespace psi{ namespace wavekernel{
 MOSignature::MOSignature(Options& options) :
     options_(options),
     num_energies_(options_.get_int("E_DESCRIPTOR_NUM")),
-    wfn_(Process::environment.wavefunction()),
-    molecule_(Process::environment.molecule())
+    wfn_(Process::environment.wavefunction())
 {
     if (!wfn_) {
         outfile->Printf("SCF has not been run yet!\n");
         throw PSIEXCEPTION("SCF has not been run yet!\n");
     }
 
-    grid_ = shared_ptr<DFTGrid>(new DFTGrid(molecule_, wfn_->basisset(), options_));
+    shared_ptr<Molecule> mol = Process::environment.molecule();
+    grid_ = shared_ptr<DFTGrid>(new DFTGrid(mol, wfn_->basisset(), options_));
     int max_points = grid_->max_points();
     int max_functions = grid_->max_functions();
     // [TODO: deal with unrestricted wavefunctions]
@@ -28,6 +28,7 @@ MOSignature::MOSignature(Options& options) :
         new RKSFunctions(wfn_->basisset(), max_points, max_functions));
     properties_->set_ansatz(0);
     properties_->set_Cs(wfn_->Ca());
+    properties_->set_pointers(wfn_->Da());
 
     orbital_blur_ = SharedMatrix(new Matrix("Orbital Blur", num_energies_, wfn_->nmo()));
     v_ = SharedMatrix(new Matrix("V_BLOCK", num_energies_, max_points));
@@ -74,7 +75,7 @@ void MOSignature::compute_v(int Q) {
 
 SharedMatrix MOSignature::sample_v(size_t n_samples) {
     SharedMatrix v_samples = SharedMatrix(
-        new Matrix("V_BLOCK", num_energies_, n_samples));
+        new Matrix("V_BLOCK", n_samples, num_energies_));
     std::vector<std::vector<size_t> > block_indices = \
         sample_block_subset_indices(n_samples);
 
@@ -82,12 +83,43 @@ SharedMatrix MOSignature::sample_v(size_t n_samples) {
     for (int Q = 0; Q < nblocks(); Q++) {
         compute_v(Q);
         for (size_t i = 0; i < block_indices[Q].size(); i++, j++) {
-            SharedVector col = v_->get_column(0, block_indices[Q][i]);
-            v_samples->set_column(0, j, col);
+            SharedVector vv = v_->get_column(0, block_indices[Q][i]);
+            v_samples->set_row(0, j, vv);
         }
     }
 
     return v_samples;
+}
+
+SharedVector MOSignature::get_x(SharedMatrix basis) {
+    if (basis->nirrep() != 1)
+        throw PSIEXCEPTION("Basis must have 1 irrep.\n");
+    if (basis->colspi(0) != num_energies_)
+        throw PSIEXCEPTION("Basis must have n_cols match num_energies.\n");
+
+    int n_basis = basis->rowspi(0);
+    SharedVector x = SharedVector(new Vector(n_basis));
+
+    for (int Q = 0; Q < nblocks(); Q++) {
+        shared_ptr<BlockOPoints> block = blocks()[Q];
+        compute_v(Q);
+        properties_->compute_points(block);
+
+        for (int i = 0; i < block->npoints(); i++) {
+            // for each block point, get the index of its nearest basis vector.
+
+            int k = assign(v_->get_column(0, i), basis);
+
+            // v_->get_column(0, i)->print();
+            // printf("k=%d ", k);
+
+            // [TODO]; also RHO_B for unrestricted wavefunctions
+            double xx = properties_->point_value("RHO_A")->get(i) * block->w()[i];
+            x->set(k, xx + x->get(k));
+        }
+    }
+
+    return x;
 }
 
 

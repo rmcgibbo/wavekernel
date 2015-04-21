@@ -6,7 +6,7 @@ using namespace psi;
 namespace psi{ namespace wavekernel {
 
 
-void inplace_element_square(SharedMatrix& x) {
+void inplace_element_square(const SharedMatrix& x) {
     for (int h=0; h < x->nirrep(); ++h) {
         for (int i=0; i < x->rowspi()[h]; ++i) {
             for (int j=0; j < x->colspi()[h]; ++j) {
@@ -17,8 +17,29 @@ void inplace_element_square(SharedMatrix& x) {
     }
 }
 
+int assign(const SharedVector& v, const SharedMatrix& X) {
+    if (v->dim(0) != X->colspi(0)) {
+         throw PSIEXCEPTION("len(v) must be equal to the 2nd dimension of X");
+    }
 
-void save_npy(const std::string& file, SharedMatrix& arr) {
+    int closest_i = -1;
+    double closest_d2 = std::numeric_limits<double>::max();
+
+    for (int i = 0; i < X->rowspi(0); i++) {
+        double d2 = 0;
+        for (int j = 0; j < v->dim(0); j++) {
+            d2 += std::pow(X->get(0, i, j) - v->get(0, j), 2);
+        }
+        if (d2 < closest_d2) {
+            closest_d2 = d2;
+            closest_i = i;
+        }
+    }
+    return closest_i;
+}
+
+
+void save_npy(const std::string& file, const SharedMatrix& arr) {
     if (arr->nirrep() != 1) {
         throw PSIEXCEPTION("Only matrices with 1 irrep are supported!\n");
     }

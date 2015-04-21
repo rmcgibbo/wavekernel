@@ -46,8 +46,7 @@ extern "C"
 PsiReturnType wavekernel(Options& options)
 {
     PsiReturnType status;
-    MOSignature mosig(options);
-
+    shared_ptr<MOSignature> mosig = shared_ptr<MOSignature>(new MOSignature(options));
 
     std::string fn = options.get_str("FILENAME");
     std::transform(fn.begin(), fn.end(), fn.begin(), ::tolower);
@@ -60,12 +59,13 @@ PsiReturnType wavekernel(Options& options)
 
     if (mode == "SAMPLE_V") {
         int num_samples = options.get_int("NUM_SAMPLE_DESCRIPTORS");
-        SharedMatrix v_samples = mosig.sample_v(num_samples);
+        SharedMatrix v_samples = mosig->sample_v(num_samples);
         outfile->Printf("Writing %d wavekernel descriptors, v, to %s\n", num_samples, fn.c_str());
         save_npy(fn, v_samples);
     } else if (mode == "CALCULATE_X") {
-        SharedMatrix s = load_npy(fn);
-        s->print();
+        SharedMatrix basis = load_npy(fn);
+        SharedVector x = mosig->get_x(basis);
+        x->print();
     } else {
         return Failure;
     }
