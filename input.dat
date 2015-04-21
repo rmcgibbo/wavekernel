@@ -1,5 +1,4 @@
-sys.path.insert(0, './..')
-import wavekernel
+plugin_load('./wavekernel.so')
 
 molecule {
 symmetry c1
@@ -20,11 +19,12 @@ set {
   dft_nuclear_scheme becke
 }
 
+
 set wavekernel {
-  print 1
-  filename vectors2.dat
+  filename vectors2.npy
+  # mode sample_v
+  mode calculate_x
 }
 
 energy('scf')
-wavekernel.sample_descriptors(100)
-
+plugin('./wavekernel.so')

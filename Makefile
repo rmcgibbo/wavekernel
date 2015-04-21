@@ -29,10 +29,10 @@
 #
 
 # The name of your plugin. Taken from the directory name.
-NAME = $(shell basename `pwd`)
+NAME := $(shell basename `pwd`)
 
 # C++ source files for your plugin. By default we grab all *.cc files.
-CXXSRC = $(notdir $(wildcard *.cc))
+CXXSRC := $(wildcard *.cc) $(wildcard cnpy/*.cc)
 
 # Flags that were used to compile Psi4.
 CXX = c++
@@ -65,15 +65,22 @@ ifeq ($(UNAME), Darwin)
 endif
 
 # The object files
-BINOBJ = $(CXXSRC:%.cc=%.o)
+BINOBJ := $(notdir $(CXXSRC:%.cc=%.o))
 
-%.o: %.cc
+mosignature.o: mosignature.cc
+	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
+wavekernel.o: wavekernel.cc
+	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
+matrixutils.o: matrixutils.cc
+	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
+cnpy.o: cnpy/cnpy.cc
 	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
 
 $(PSITARGET): $(BINOBJ)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(CXXDEFS) $(PSIPLUGIN)
 
-# Erase all compiled intermediate files
 clean:
 	rm -f $(BINOBJ) $(PSITARGET) *.d *.pyc *.test output.dat psi.timer.dat
 
+print-%:
+	@echo '$*=$($*)'

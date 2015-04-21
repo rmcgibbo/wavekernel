@@ -11,7 +11,9 @@
 #include <libfock/points.h>
 
 #include "matrixutils.hpp"
-#include "utils.hpp"
+// #include "utils.hpp"
+#include "mosignature.hpp"
+
 
 INIT_PLUGIN
 
@@ -31,102 +33,12 @@ int read_options(std::string name, Options& options)
         options.add_double("E_DESCRIPTOR_MAX", 0);
         options.add_int("E_DESCRIPTOR_NUM", 20);
         options.add_double("E_DESCRIPTOR_SIGMA", 2);
-        options.add_str("MODE", "", "Wave kernel plugin mode");
+        options.add_str("MODE", "SAMPLE_V", "SAMPLE_V CALCULATE_X");
         options.add_int("NUM_SAMPLE_DESCRIPTORS", 100);
-        options.add_str("FILENAME", "descriptors.dat");
+        options.add_str("FILENAME", "descriptors.npy");
     }
 
     return true;
-}
-
-
-SharedMatrix build_orbital_blur(SharedVector epsilon, Options& options) {
-    shared_ptr<Wavefunction> wfn = Process::environment.wavefunction();
-
-    const int e_num = options.get_int("E_DESCRIPTOR_NUM");
-    const double e_min = options.get_double("E_DESCRIPTOR_MIN");
-    const double e_max = options.get_double("E_DESCRIPTOR_MAX");
-    const double sigma = options.get_double("E_DESCRIPTOR_SIGMA");
-    const double prefactor = 1 / (sigma * std::sqrt(2*M_PI));
-
-    SharedMatrix mixing = SharedMatrix(new Matrix("Orbital Mixing", e_num, wfn->nmo()));
-
-    // [TODO] assert that len(epsilon_a) == wfn->nmo();
-    // Do we want to always include all of the orbitals?
-    // Maybe we should include the virtual orbitals?
-    // [TODO]: Deal with unrestricted wavefunctions.
-
-    for (int i = 0; i < e_num; i++) {
-        double e_i = e_min + ((e_max - e_min) / (e_num-1)) * i;
-        // outfile->Printf("e_i[%d]=%f\n", i, e_i);
-
-        for (int j = 0; j < wfn->nmo(); j++) {
-            double exponent = -std::pow(epsilon->get(j) - e_i, 2) / (2*sigma*sigma);
-            double overlap = prefactor * std::exp(exponent);
-            mixing->set(i, j, overlap);
-        }
-
-    }
-    return mixing;
-}
-
-
-void sample_descriptors(Options& options) {
-    outfile->Printf("WAVE KERNEL PLUGIN\n");
-    shared_ptr<Molecule> molecule = Process::environment.molecule();
-    shared_ptr<Wavefunction> wfn = Process::environment.wavefunction();
-    shared_ptr<BasisSet> primary = wfn->basisset();
-
-    if (!wfn) {
-        outfile->Printf("SCF has not been run yet!\n");
-        throw PSIEXCEPTION("SCF has not been run yet!\n");
-    }
-
-    shared_ptr<DFTGrid> grid = shared_ptr<DFTGrid>(new DFTGrid(molecule, primary, options));
-    grid->print("outfile", 1);
-    const std::vector<shared_ptr<BlockOPoints> >& blocks = grid->blocks();
-    std::vector<std::vector<size_t> > block_indices = \
-        blocks_rand_subset(blocks, options.get_int("NUM_SAMPLE_DESCRIPTORS"));
-
-    int max_points = grid->max_points();
-    int max_functions = grid->max_functions();
-
-    // [TODO: deal with unrestricted wavefunctions]
-    shared_ptr<PointFunctions> properties = \
-         shared_ptr<PointFunctions>(new RKSFunctions(primary, max_points, max_functions));
-    properties->set_ansatz(0);
-    properties->set_Cs(wfn->Ca());
-
-    SharedMatrix blur = build_orbital_blur(wfn->epsilon_a(), options);
-    SharedMatrix vm = shared_ptr<Matrix>(new Matrix("V_BLOCK", blur->rowspi(0), max_points));
-
-    std::string fn = options.get_str("FILENAME");
-    std::transform(fn.begin(), fn.end(), fn.begin(), ::tolower);
-    outfile->Printf("Writing %d wavekernel descriptors, v, to %s\n",
-        options.get_int("NUM_SAMPLE_DESCRIPTORS"), fn.c_str());
-    FILE* fh = fopen(fn.c_str(), "a");
-
-    for (size_t Q = 0; Q < blocks.size(); Q++) {
-        shared_ptr<BlockOPoints> block = blocks[Q];
-
-        properties->compute_orbitals(block);
-        SharedMatrix PsiA = properties->orbital_value("PSI_A");
-        inplace_element_square(PsiA);
-        vm->zero();
-        vm->accumulate_product(blur, PsiA);
-
-
-        /* Print the selected random discriptor vectors from this block
-        */
-        for (size_t i = 0; i < block_indices[Q].size(); i++) {
-            SharedVector v = vm->get_column(0, block_indices[Q][i]);
-            for (size_t j = 0; j < v->dim(0); j++) {
-                fprintf(fh, "%12.8f ", v->get(j));
-            }
-            fprintf(fh, "\n");
-        }
-    }
-    fclose(fh);
 }
 
 
@@ -134,25 +46,37 @@ extern "C"
 PsiReturnType wavekernel(Options& options)
 {
     PsiReturnType status;
-    try {
-        int print = options.get_int("PRINT");
-        string mode = options.get_str("MODE");
-        if (mode == "SAMPLE_DESCRIPTORS") {
-            sample_descriptors(options);
-            status = Success;
-        } else {
-            status = Failure;
-        }
-    }
-    catch (psi::PsiException e) {
-        outfile->Printf( "====== ERROR ====\n%s %d %s", e.what(), e.line(), e.location());
-        outfile->Printf("%s", e.what());
-        throw e;
+    MOSignature mosig(options);
+
+
+    std::string fn = options.get_str("FILENAME");
+    std::transform(fn.begin(), fn.end(), fn.begin(), ::tolower);
+
+    string mode = options.get_str("MODE");
+    outfile->Printf("\n ======= Molecular Orbital Signature Plugin =======\n");
+    outfile->Printf("    mode     = %s\n", mode.c_str());
+    outfile->Printf("    filename = %s", fn.c_str());
+    outfile->Printf("\n");
+
+    if (mode == "SAMPLE_V") {
+        int num_samples = options.get_int("NUM_SAMPLE_DESCRIPTORS");
+        SharedMatrix v_samples = mosig.sample_v(num_samples);
+        outfile->Printf("Writing %d wavekernel descriptors, v, to %s\n", num_samples, fn.c_str());
+        save_npy(fn, v_samples);
+    } else if (mode == "CALCULATE_X") {
+        SharedMatrix s = load_npy(fn);
+        s->print();
+    } else {
+        return Failure;
     }
 
+
+
+
     outfile->Printf("\nFINISHED WAVEKERNEL WITHOUT DEATH!\n");
-    return status;
+    return Success;
 }
+
 
 }} // End namespaces
 

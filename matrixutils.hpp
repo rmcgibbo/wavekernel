@@ -7,20 +7,12 @@ using namespace boost;
 using namespace psi;
 namespace psi{ namespace wavekernel {
 
-
 /*
     Square every entry of a matrix inplace
 */
-void inplace_element_square(SharedMatrix& x) {
-    for (int h=0; h < x->nirrep(); ++h) {
-        for (int i=0; i < x->rowspi()[h]; ++i) {
-            for (int j=0; j < x->colspi()[h]; ++j) {
-                double e = x->get(h, i, j);
-                x->set(h, i, j, e*e);
-            }
-        }
-    }
-}
+void inplace_element_square(SharedMatrix& x);
+void save_npy(const std::string& file, SharedMatrix& arr);
+SharedMatrix load_npy(const std::string& file);
 
 }} /* namespace */
 #endif
