@@ -10,6 +10,8 @@ namespace psi{ namespace wavekernel {
 /*
 Fermi-Dirac occupation number of a single energy level at energy `eps_j`
 at fermi level `mu` and inverse temperature `beta`.
+
+Returns n, in (0, 1).
  */
 double n_occ(double eps_j, double mu, double beta);
 
