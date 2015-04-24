@@ -19,17 +19,25 @@ private:
     Options& options_;
 
     // Gaussian blur of the orbitals by energy
-    SharedMatrix orbital_blur_;
+    SharedMatrix orbital_mixing_a_;
+    SharedMatrix orbital_mixing_b_;
     // Computed point signature vectors (only for one block of points)
     SharedMatrix v_;
     // Computed point classification (integers, only for one block of points)
     SharedVector s_;
+    // MO energies, both alpha and beta together.
+    SharedVector epsilon_;
 
-    const int num_energies_;
 
-    void initialize_orbital_blur(SharedVector epsilon);
+    const int num_temps_;
+    const int num_electrons_;
+
+    void initialize_orbital_mixing();
     std::vector<std::vector<size_t> > sample_block_subset_indices(size_t n_samples);
     void check_basis(const SharedMatrix& basis);
+
+
+
 
 public:
     MOSignature(Options& options);

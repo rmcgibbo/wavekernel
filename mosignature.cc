@@ -2,17 +2,22 @@
 
 #include "mosignature.hpp"
 #include "matrixutils.hpp"
+#include "fermilevel.hpp"
 
 
 using namespace psi;
 using namespace boost;
 namespace psi{ namespace wavekernel{
 
+/* Boltzmann constant in [Hartree / K] */
+static const double BOLTZMANN = 3.166811429e-6;
+
 
 MOSignature::MOSignature(Options& options) :
     options_(options),
-    num_energies_(options_.get_int("E_DESCRIPTOR_NUM")),
-    wfn_(Process::environment.wavefunction())
+    num_temps_(options_.get_int("NUM_TEMPS")),
+    wfn_(Process::environment.wavefunction()),
+    num_electrons_(wfn_->nalpha() + wfn_->nbeta())
 {
     if (!wfn_) {
         outfile->Printf("SCF has not been run yet!\n");
@@ -23,61 +28,114 @@ MOSignature::MOSignature(Options& options) :
     grid_ = shared_ptr<DFTGrid>(new DFTGrid(mol, wfn_->basisset(), options_));
     int max_points = grid_->max_points();
     int max_functions = grid_->max_functions();
-    // [TODO: deal with unrestricted wavefunctions]
-    properties_ = shared_ptr<PointFunctions>(
-        new RKSFunctions(wfn_->basisset(), max_points, max_functions));
-    properties_->set_ansatz(0);
-    properties_->set_Cs(wfn_->Ca());
-    properties_->set_pointers(wfn_->Da());
 
-    orbital_blur_ = SharedMatrix(new Matrix("Orbital Blur", num_energies_, wfn_->nmo()));
-    v_ = SharedMatrix(new Matrix("V_BLOCK", num_energies_, max_points));
+    std::string ref = options_.get_str("REFERENCE");
+    if ((ref == "RKS") || (ref == "RHF")) {
+        properties_ = shared_ptr<PointFunctions>(
+            new RKSFunctions(wfn_->basisset(), max_points, max_functions));
+        properties_->set_ansatz(0);
+        properties_->set_Cs(wfn_->Ca());
+        properties_->set_pointers(wfn_->Da());
+    } else if ((ref == "UKS") || (ref == "UHF")) {
+        properties_ = shared_ptr<PointFunctions>(
+            new UKSFunctions(wfn_->basisset(), max_points, max_functions));
+        properties_->set_ansatz(0);
+        properties_->set_Cs(wfn_->Ca(), wfn_->Cb());
+        properties_->set_pointers(wfn_->Da(), wfn_->Db());
+    } else {
+        outfile->Printf("Unknown reference: %s", ref.c_str());
+        throw PSIEXCEPTION("ERROR!");
+    }
+
+    orbital_mixing_a_ = SharedMatrix(new Matrix("Orbital Blur A", num_temps_, wfn_->nmo()));
+    orbital_mixing_b_ = SharedMatrix(new Matrix("Orbital Blur B", num_temps_, wfn_->nmo()));
+
+    v_ = SharedMatrix(new Matrix("V_BLOCK", num_temps_, max_points));
     s_ = SharedVector(new Vector("S_BLOCK", max_points));
 
+    // copy wfn_->epsilon_a() and wfn_->epsilon_b() into a single vector
+    epsilon_ = SharedVector(new Vector(wfn_->epsilon_a()->dim() + wfn_->epsilon_b()->dim()));
+    for (int i = 0; i < wfn_->epsilon_a()->dim(); i++) {
+        epsilon_->set(i, wfn_->epsilon_a()->get(i));
+    }
+    for (int i = 0; i < wfn_->epsilon_b()->dim(); i++) {
+        epsilon_->set(i + wfn_->epsilon_a()->dim(), wfn_->epsilon_b()->get(i));
+    }
 
-    orbital_blur_->zero();
-    // [TODO]: Deal with unrestricted wavefunctions.
-    initialize_orbital_blur(wfn_->epsilon_a());
+    initialize_orbital_mixing();
 
 }
+void MOSignature::initialize_orbital_mixing() {
+    const double T_min = options_.get_double("TEMP_MIN");
+    const double T_max = options_.get_double("TEMP_MAX");
 
+    for (int i = 0; i < num_temps_; i++) {
+        double T = T_min + ((T_max - T_min) / (num_temps_-1)) * i;
+        double beta = 1 / (BOLTZMANN * T);
 
-void MOSignature::initialize_orbital_blur(SharedVector epsilon) {
-    const double e_min = options_.get_double("E_DESCRIPTOR_MIN");
-    const double e_max = options_.get_double("E_DESCRIPTOR_MAX");
-    const double sigma = options_.get_double("E_DESCRIPTOR_SIGMA");
-    const double prefactor = 1 / (sigma * std::sqrt(2*M_PI));
-
-    // [TODO] assert that len(epsilon_a) == wfn->nmo();
-    // Do we want to always include all of the orbitals?
-    // Maybe we should include the virtual orbitals?
-
-
-    for (int i = 0; i < num_energies_; i++) {
-        double e_i = e_min + ((e_max - e_min) / (num_energies_-1)) * i;
+        // compute the fermi level at this temperature
+        double mu = calculate_mu(num_electrons_, beta, epsilon_);
 
         for (int j = 0; j < wfn_->nmo(); j++) {
-            double exponent = -std::pow(epsilon->get(j) - e_i, 2) / (2*sigma*sigma);
-            double overlap = prefactor * std::exp(exponent);
-            orbital_blur_->set(i, j, orbital_blur_->get(i,j)+overlap);
+            double na = n_occ(wfn_->epsilon_a()->get(j), mu, beta);
+            double nb = n_occ(wfn_->epsilon_b()->get(j), mu, beta);
+
+            orbital_mixing_a_->set(i, j, na);
+            orbital_mixing_b_->set(i, j, nb);
         }
     }
 }
 
 
+
+
+// void MOSignature::initialize_orbital_mixing(SharedVector epsilon) {
+//     const double e_min = options_.get_double("E_DESCRIPTOR_MIN");
+//     const double e_max = options_.get_double("E_DESCRIPTOR_MAX");
+//     const double sigma = options_.get_double("E_DESCRIPTOR_SIGMA");
+//     const double prefactor = 1 / (sigma * std::sqrt(2*M_PI));
+//
+//     // [TODO] assert that len(epsilon_a) == wfn->nmo();
+//     // Do we want to always include all of the orbitals?
+//     // Maybe we should include the virtual orbitals?
+//
+//
+//     for (int i = 0; i < num_energies_; i++) {
+//         double e_i = e_min + ((e_max - e_min) / (num_energies_-1)) * i;
+//
+//         for (int j = 0; j < wfn_->nmo(); j++) {
+//             double exponent = -std::pow(epsilon->get(j) - e_i, 2) / (2*sigma*sigma);
+//             double overlap = prefactor * std::exp(exponent);
+//             orbital_blur_->set(i, j, orbital_blur_->get(i,j)+overlap);
+//         }
+//     }
+// }
+
+
+/* Compute the local descriptor vectors for each point in the molecular grid's
+   Qth block.
+*/
 void MOSignature::compute_v(int Q) {
     shared_ptr<BlockOPoints> block = blocks()[Q];
     properties_->compute_orbitals(block);
     SharedMatrix psi_a = properties_->orbital_value("PSI_A");
+    SharedMatrix psi_b = properties_->orbital_value("PSI_B");
+
     inplace_element_square(psi_a);
-    v_->zero();
-    v_->accumulate_product(orbital_blur_, psi_a);
+    if (psi_a != psi_b) {
+        // unrestricted wavefunction
+        inplace_element_square(psi_b);
+    }
+
+    v_->accumulate_product(orbital_mixing_a_, psi_a);
+    v_->accumulate_product(orbital_mixing_b_, psi_b);
+
 }
 
 
 SharedMatrix MOSignature::sample_v(size_t n_samples) {
     SharedMatrix v_samples = SharedMatrix(
-        new Matrix("V_BLOCK", n_samples, num_energies_));
+        new Matrix("V_BLOCK", n_samples, num_temps_));
     std::vector<std::vector<size_t> > block_indices = \
         sample_block_subset_indices(n_samples);
 
@@ -96,8 +154,8 @@ SharedMatrix MOSignature::sample_v(size_t n_samples) {
 void MOSignature::check_basis(const SharedMatrix& basis) {
     if (basis->nirrep() != 1)
         throw PSIEXCEPTION("Basis must have 1 irrep.\n");
-    if (basis->colspi(0) != num_energies_)
-        throw PSIEXCEPTION("Basis must have n_cols match num_energies.\n");
+    if (basis->colspi(0) != num_temps_)
+        throw PSIEXCEPTION("Basis must have n_cols match num_temps_.\n");
 }
 
 void MOSignature::compute_s(const SharedMatrix& basis, int Q) {
@@ -120,9 +178,10 @@ SharedVector MOSignature::get_x(const SharedMatrix& basis) {
     for (int Q = 0; Q < nblocks(); Q++) {
         compute_s(basis, Q);
         shared_ptr<BlockOPoints> block = blocks()[Q];
+        double* rho_a = properties_->point_value("RHO_A")->pointer();
+        double* rho_b = properties_->point_value("RHO_A")->pointer();
         for (int i = 0; i < block->npoints(); i++) {
-            double xx = properties_->point_value("RHO_A")->get(i) * block->w()[i];
-
+            double xx = (rho_a[i] + rho_b[i]) * block->w()[i];
             int s_i = static_cast<int>(s_->get(i));
             x->set(s_i, xx + x->get(s_i));
         }

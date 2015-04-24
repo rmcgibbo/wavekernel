@@ -30,10 +30,16 @@ int read_options(std::string name, Options& options)
     if (name == "WAVEKERNEL"|| options.read_globals()) {
         /*- The amount of information printed to the output file -*/
         options.add_int("PRINT", 1);
+/*
         options.add_double("E_DESCRIPTOR_MIN", -20);
         options.add_double("E_DESCRIPTOR_MAX", 0);
         options.add_int("E_DESCRIPTOR_NUM", 20);
         options.add_double("E_DESCRIPTOR_SIGMA", 2);
+*/
+        options.add_double("TEMP_MIN", 0);
+        options.add_double("TEMP_MAX", 5000);
+        options.add_int("NUM_TEMPS", 10);
+
         options.add_str("MODE", "SAMPLE_V", "SAMPLE_V CALCULATE_X");
         options.add_int("NUM_SAMPLE_DESCRIPTORS", 100);
         options.add_str("FILENAME", "descriptors.npy");
@@ -90,23 +96,6 @@ PsiReturnType wavekernel(Options& options)
     } else {
         return Failure;
     }
-
-    shared_ptr<Wavefunction> wfn = Process::environment.wavefunction();
-
-    int nelectrons = wfn->nalpha() + wfn->nbeta();
-    SharedVector epsilon = SharedVector(
-        new Vector(wfn->epsilon_a()->dim() + wfn->epsilon_b()->dim()));
-    for (int i = 0; i < wfn->epsilon_a()->dim(); i++) {
-        epsilon->set(i, wfn->epsilon_a()->get(i));
-    }
-    for (int i = 0; i < wfn->epsilon_b()->dim(); i++) {
-        epsilon->set(i + wfn->epsilon_a()->dim(), wfn->epsilon_b()->get(i));
-    }
-    epsilon->print();
-    outfile->Printf("\nNumber of electrons: %d\n", nelectrons);
-
-    double mu = calculate_mu(nelectrons, 5, epsilon);
-    outfile->Printf("\nFermi level: %.3f a.u.\n", mu);
 
     outfile->Printf("\nFINISHED WAVEKERNEL WITHOUT DEATH!\n");
     return Success;
