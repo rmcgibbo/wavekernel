@@ -13,6 +13,7 @@
 #include "matrixutils.hpp"
 // #include "utils.hpp"
 #include "mosignature.hpp"
+#include "fermilevel.hpp"
 
 
 INIT_PLUGIN
@@ -36,6 +37,7 @@ int read_options(std::string name, Options& options)
         options.add_str("MODE", "SAMPLE_V", "SAMPLE_V CALCULATE_X");
         options.add_int("NUM_SAMPLE_DESCRIPTORS", 100);
         options.add_str("FILENAME", "descriptors.npy");
+        options.add_str("FILENAME_OUT", "grid.npy");
     }
 
     return true;
@@ -50,6 +52,8 @@ PsiReturnType wavekernel(Options& options)
 
     std::string fn = options.get_str("FILENAME");
     std::transform(fn.begin(), fn.end(), fn.begin(), ::tolower);
+    std::string fn_out = options.get_str("FILENAME_OUT");
+    std::transform(fn_out.begin(), fn_out.end(), fn_out.begin(), ::tolower);
 
     string mode = options.get_str("MODE");
     outfile->Printf("\n ======= Molecular Orbital Signature Plugin =======\n");
@@ -62,6 +66,23 @@ PsiReturnType wavekernel(Options& options)
         SharedMatrix v_samples = mosig->sample_v(num_samples);
         outfile->Printf("Writing %d wavekernel descriptors, v, to %s\n", num_samples, fn.c_str());
         save_npy(fn, v_samples);
+    } else if (mode == "DUMP_S") {
+        SharedMatrix output = SharedMatrix(new Matrix("output", mosig->grid()->npoints(), 4));
+        SharedMatrix basis = load_npy(fn);
+
+        int kk = 0;
+        for (int Q = 0; Q < mosig->nblocks(); Q++) {
+            shared_ptr<BlockOPoints> block = mosig->blocks()[Q];
+            mosig->compute_s(basis, Q);
+            for (int k = 0; k < block->npoints(); k++, kk++) {
+                output->set(kk, 0, block->x()[k]);
+                output->set(kk, 1, block->y()[k]);
+                output->set(kk, 2, block->z()[k]);
+                output->set(kk, 3, mosig->s()->pointer()[k]);
+            }
+        }
+        save_npy(fn_out, output);
+
     } else if (mode == "CALCULATE_X") {
         SharedMatrix basis = load_npy(fn);
         SharedVector x = mosig->get_x(basis);
@@ -70,8 +91,22 @@ PsiReturnType wavekernel(Options& options)
         return Failure;
     }
 
+    shared_ptr<Wavefunction> wfn = Process::environment.wavefunction();
 
+    int nelectrons = wfn->nalpha() + wfn->nbeta();
+    SharedVector epsilon = SharedVector(
+        new Vector(wfn->epsilon_a()->dim() + wfn->epsilon_b()->dim()));
+    for (int i = 0; i < wfn->epsilon_a()->dim(); i++) {
+        epsilon->set(i, wfn->epsilon_a()->get(i));
+    }
+    for (int i = 0; i < wfn->epsilon_b()->dim(); i++) {
+        epsilon->set(i + wfn->epsilon_a()->dim(), wfn->epsilon_b()->get(i));
+    }
+    epsilon->print();
+    outfile->Printf("\nNumber of electrons: %d\n", nelectrons);
 
+    double mu = calculate_mu(nelectrons, 5, epsilon);
+    outfile->Printf("\nFermi level: %.3f a.u.\n", mu);
 
     outfile->Printf("\nFINISHED WAVEKERNEL WITHOUT DEATH!\n");
     return Success;

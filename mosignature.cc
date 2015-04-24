@@ -32,6 +32,8 @@ MOSignature::MOSignature(Options& options) :
 
     orbital_blur_ = SharedMatrix(new Matrix("Orbital Blur", num_energies_, wfn_->nmo()));
     v_ = SharedMatrix(new Matrix("V_BLOCK", num_energies_, max_points));
+    s_ = SharedVector(new Vector("S_BLOCK", max_points));
+
 
     orbital_blur_->zero();
     // [TODO]: Deal with unrestricted wavefunctions.
@@ -91,31 +93,38 @@ SharedMatrix MOSignature::sample_v(size_t n_samples) {
     return v_samples;
 }
 
-SharedVector MOSignature::get_x(SharedMatrix basis) {
+void MOSignature::check_basis(const SharedMatrix& basis) {
     if (basis->nirrep() != 1)
         throw PSIEXCEPTION("Basis must have 1 irrep.\n");
     if (basis->colspi(0) != num_energies_)
         throw PSIEXCEPTION("Basis must have n_cols match num_energies.\n");
+}
 
+void MOSignature::compute_s(const SharedMatrix& basis, int Q) {
+    check_basis(basis);
+    compute_v(Q);
+    shared_ptr<BlockOPoints> block = blocks()[Q];
+    properties_->compute_points(block);
+
+    for (int i = 0; i < block->npoints(); i++) {
+        int k = assign(v_->get_column(0, i), basis);
+        s_->set(0, i, static_cast<double>(k));
+    }
+}
+
+SharedVector MOSignature::get_x(const SharedMatrix& basis) {
+    check_basis(basis);
     int n_basis = basis->rowspi(0);
     SharedVector x = SharedVector(new Vector(n_basis));
 
     for (int Q = 0; Q < nblocks(); Q++) {
+        compute_s(basis, Q);
         shared_ptr<BlockOPoints> block = blocks()[Q];
-        compute_v(Q);
-        properties_->compute_points(block);
-
         for (int i = 0; i < block->npoints(); i++) {
-            // for each block point, get the index of its nearest basis vector.
-
-            int k = assign(v_->get_column(0, i), basis);
-
-            // v_->get_column(0, i)->print();
-            // printf("k=%d ", k);
-
-            // [TODO]; also RHO_B for unrestricted wavefunctions
             double xx = properties_->point_value("RHO_A")->get(i) * block->w()[i];
-            x->set(k, xx + x->get(k));
+
+            int s_i = static_cast<int>(s_->get(i));
+            x->set(s_i, xx + x->get(s_i));
         }
     }
 

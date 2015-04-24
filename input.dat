@@ -15,7 +15,7 @@ A = 104.5
 set {
   basis sto-3g
   reference rhf
-  # dft_grid_name sg0
+  dft_grid_name sg0
 
 }
 
@@ -23,7 +23,8 @@ set {
 set wavekernel {
   filename vectors.npy
   # mode sample_v
-  mode calculate_x
+  # mode calculate_x
+  mode dump_s
 }
 
 energy('scf')

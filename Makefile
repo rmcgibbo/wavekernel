@@ -32,7 +32,7 @@
 NAME := $(shell basename `pwd`)
 
 # C++ source files for your plugin. By default we grab all *.cc files.
-CXXSRC := $(wildcard *.cc) $(wildcard cnpy/*.cc)
+CXXSRC := $(wildcard *.cc) $(wildcard */*.cc)
 
 # Flags that were used to compile Psi4.
 CXX = c++
@@ -73,7 +73,11 @@ wavekernel.o: wavekernel.cc
 	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
 matrixutils.o: matrixutils.cc
 	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
+fermilevel.o: fermilevel.cc
+	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
 cnpy.o: cnpy/cnpy.cc
+	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
+brent.o: brent/brent.cc
 	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
 
 $(PSITARGET): $(BINOBJ)
