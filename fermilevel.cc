@@ -4,6 +4,13 @@ namespace psi{ namespace wavekernel{
 
 
 double n_occ(double eps_j, double mu, double beta) {
+    if (std::isinf(beta)) {
+        if (eps_j < mu)
+            return 1.0;
+        else
+            return 0.0;
+    }
+
     return 1 / (1 + std::exp(beta * (eps_j - mu)));
 }
 

@@ -13,7 +13,7 @@ A = 104.5
 }
 
 set {
-  basis sto-3g
+  basis 6-31g*
   reference uhf
   dft_grid_name sg0
 
@@ -23,6 +23,7 @@ set {
 set wavekernel {
   filename vectors.npy
   mode sample_v
+  temp_max 100000.0
   # mode calculate_x
   # mode dump_s
 }

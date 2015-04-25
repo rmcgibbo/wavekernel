@@ -20,7 +20,6 @@ MOSignature::MOSignature(Options& options) :
     num_electrons_(wfn_->nalpha() + wfn_->nbeta())
 {
     if (!wfn_) {
-        outfile->Printf("SCF has not been run yet!\n");
         throw PSIEXCEPTION("SCF has not been run yet!\n");
     }
 
@@ -43,12 +42,12 @@ MOSignature::MOSignature(Options& options) :
         properties_->set_Cs(wfn_->Ca(), wfn_->Cb());
         properties_->set_pointers(wfn_->Da(), wfn_->Db());
     } else {
-        outfile->Printf("Unknown reference: %s", ref.c_str());
-        throw PSIEXCEPTION("ERROR!");
+        throw PSIEXCEPTION("Unknown reference: " + ref + "\n");
     }
 
-    orbital_mixing_a_ = SharedMatrix(new Matrix("Orbital Blur A", num_temps_, wfn_->nmo()));
-    orbital_mixing_b_ = SharedMatrix(new Matrix("Orbital Blur B", num_temps_, wfn_->nmo()));
+
+    orbital_mixing_a_ = SharedMatrix(new Matrix("Orbital mixing A", num_temps_, wfn_->nmo()));
+    orbital_mixing_b_ = SharedMatrix(new Matrix("Orbital mixing B", num_temps_, wfn_->nmo()));
 
     v_ = SharedMatrix(new Matrix("V_BLOCK", num_temps_, max_points));
     s_ = SharedVector(new Vector("S_BLOCK", max_points));
@@ -69,12 +68,18 @@ void MOSignature::initialize_orbital_mixing() {
     const double T_min = options_.get_double("TEMP_MIN");
     const double T_max = options_.get_double("TEMP_MAX");
 
+    // orbital_mixing_a_ is of dimension (num_temps_ x num_molecular_orbitals)
+
     for (int i = 0; i < num_temps_; i++) {
         double T = T_min + ((T_max - T_min) / (num_temps_-1)) * i;
         double beta = 1 / (BOLTZMANN * T);
 
         // compute the fermi level at this temperature
         double mu = calculate_mu(num_electrons_, beta, epsilon_);
+
+        // outfile->Printf("Temp:  %.3f K\n", T);
+        // outfile->Printf("beta:  %.3f 1/h\n", beta);
+        // outfile->Printf("fermi: %.3f h\n\n", mu);
 
         for (int j = 0; j < wfn_->nmo(); j++) {
             double na = n_occ(wfn_->epsilon_a()->get(j), mu, beta);
@@ -84,6 +89,7 @@ void MOSignature::initialize_orbital_mixing() {
             orbital_mixing_b_->set(i, j, nb);
         }
     }
+    orbital_mixing_a_->print();
 }
 
 
