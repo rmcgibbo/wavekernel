@@ -23,6 +23,10 @@ MOSignature::MOSignature(Options& options) :
         throw PSIEXCEPTION("SCF has not been run yet!\n");
     }
 
+    if (wfn_->nirrep() != 1) {
+        throw PSIEXCEPTION("This plugin is only implemented in the C1 symmetry group.");
+    }
+
     shared_ptr<Molecule> mol = Process::environment.molecule();
     grid_ = shared_ptr<DFTGrid>(new DFTGrid(mol, wfn_->basisset(), options_));
     int max_points = grid_->max_points();
@@ -62,8 +66,9 @@ MOSignature::MOSignature(Options& options) :
     }
 
     initialize_orbital_mixing();
-
 }
+
+
 void MOSignature::initialize_orbital_mixing() {
     const double T_min = options_.get_double("TEMP_MIN");
     const double T_max = options_.get_double("TEMP_MAX");
@@ -89,10 +94,8 @@ void MOSignature::initialize_orbital_mixing() {
             orbital_mixing_b_->set(i, j, nb);
         }
     }
-    orbital_mixing_a_->print();
+    // orbital_mixing_a_->print();
 }
-
-
 
 
 // void MOSignature::initialize_orbital_mixing(SharedVector epsilon) {
@@ -135,7 +138,6 @@ void MOSignature::compute_v(int Q) {
 
     v_->accumulate_product(orbital_mixing_a_, psi_a);
     v_->accumulate_product(orbital_mixing_b_, psi_b);
-
 }
 
 
@@ -157,12 +159,14 @@ SharedMatrix MOSignature::sample_v(size_t n_samples) {
     return v_samples;
 }
 
+
 void MOSignature::check_basis(const SharedMatrix& basis) {
     if (basis->nirrep() != 1)
         throw PSIEXCEPTION("Basis must have 1 irrep.\n");
     if (basis->colspi(0) != num_temps_)
         throw PSIEXCEPTION("Basis must have n_cols match num_temps_.\n");
 }
+
 
 void MOSignature::compute_s(const SharedMatrix& basis, int Q) {
     check_basis(basis);

@@ -1,7 +1,7 @@
 plugin_load('./wavekernel.so')
 
 molecule {
-symmetry c1
+
 
 O
 H 1 R
@@ -14,7 +14,7 @@ A = 104.5
 
 set {
   basis 6-31g*
-  reference uhf
+  reference rhf
   dft_grid_name sg0
 
 }
