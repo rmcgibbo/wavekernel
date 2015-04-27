@@ -6,3 +6,4 @@ psi.timer.dat
 output.dat
 wavekernel.d
 *.o
+gitversion.hpp
