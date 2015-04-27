@@ -67,9 +67,11 @@ endif
 # The object files
 BINOBJ := $(notdir $(CXXSRC:%.cc=%.o))
 
+gitversion.hpp: .git/HEAD .git/index
+    echo "const char *GIT_VERSION = \"$(shell git rev-parse HEAD)\";" > gitversion.hpp
 mosignature.o: mosignature.cc
 	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
-wavekernel.o: wavekernel.cc
+wavekernel.o: wavekernel.cc gitversion.hpp
 	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
 matrixutils.o: matrixutils.cc
 	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<

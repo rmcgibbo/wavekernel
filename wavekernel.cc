@@ -14,6 +14,7 @@
 // #include "utils.hpp"
 #include "mosignature.hpp"
 #include "fermilevel.hpp"
+#include "gitversion.hpp"
 
 
 INIT_PLUGIN
@@ -63,8 +64,9 @@ PsiReturnType wavekernel(Options& options)
 
     string mode = options.get_str("MODE");
     outfile->Printf("\n ======= Molecular Orbital Signature Plugin =======\n");
-    outfile->Printf("    mode     = %s\n", mode.c_str());
-    outfile->Printf("    filename = %s\n\n", fn.c_str());
+    outfile->Printf("    gitversion = %s\n", GIT_VERSION);
+    outfile->Printf("    mode       = %s\n", mode.c_str());
+    outfile->Printf("    filename   = %s\n\n", fn.c_str());
 
     if (mode == "SAMPLE_V") {
         int num_samples = options.get_int("NUM_SAMPLE_DESCRIPTORS");
