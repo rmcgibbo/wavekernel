@@ -64,8 +64,7 @@ PsiReturnType wavekernel(Options& options)
     string mode = options.get_str("MODE");
     outfile->Printf("\n ======= Molecular Orbital Signature Plugin =======\n");
     outfile->Printf("    mode     = %s\n", mode.c_str());
-    outfile->Printf("    filename = %s", fn.c_str());
-    outfile->Printf("\n");
+    outfile->Printf("    filename = %s\n\n", fn.c_str());
 
     if (mode == "SAMPLE_V") {
         int num_samples = options.get_int("NUM_SAMPLE_DESCRIPTORS");

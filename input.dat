@@ -1,31 +1,28 @@
 plugin_load('./wavekernel.so')
 
-molecule {
-
-
-O
-H 1 R
-H 1 R 2 A
-
-R = .9
-A = 104.5
-
+molecule ch4 {
+  symmetry c1
+  0 1
+  C
+  H 1 1.083666
+  H 1 1.083681 2 109.472302
+  H 1 1.083681 2 109.472301 3 120.000016
+  H 1 1.083681 2 109.472289 3 -119.999993
 }
 
 set {
   basis 6-31g*
-  reference rhf
+  reference uhf
   dft_grid_name sg0
-
 }
 
 
 set wavekernel {
-  filename vectors.npy
-  mode sample_v
+  filename vectors8.npy
   temp_max 100000.0
+  # mode sample_v
   # mode calculate_x
-  # mode dump_s
+  mode dump_s
 }
 
 energy('scf')
