@@ -68,7 +68,7 @@ endif
 BINOBJ := $(notdir $(CXXSRC:%.cc=%.o))
 
 gitversion.hpp: .git/HEAD .git/index
-    echo "const char *GIT_VERSION = \"$(shell git rev-parse HEAD)\";" > gitversion.hpp
+	echo "const char *GIT_VERSION = \"$(shell git rev-parse --short HEAD)\";" > gitversion.hpp
 mosignature.o: mosignature.cc
 	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
 wavekernel.o: wavekernel.cc gitversion.hpp
