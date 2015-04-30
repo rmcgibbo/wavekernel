@@ -190,11 +190,12 @@ SharedVector MOSignature::get_x(const SharedMatrix& basis) {
         shared_ptr<BlockOPoints> block = blocks()[Q];
         double* rho_a = properties_->point_value("RHO_A")->pointer();
         double* rho_b = properties_->point_value("RHO_A")->pointer();
+        double* w = block->w();
         for (int i = 0; i < block->npoints(); i++) {
-            double xx = (rho_a[i] + rho_b[i]) * block->w()[i];
+            double xx = (rho_a[i] + rho_b[i]) * w[i];
             int s_i = static_cast<int>(s_->get(i));
             x->set(s_i, xx + x->get(s_i));
-        }
+	}
     }
 
     return x;

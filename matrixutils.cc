@@ -22,7 +22,7 @@ int assign(const SharedVector& v, const SharedMatrix& X) {
          throw PSIEXCEPTION("len(v) must be equal to the 2nd dimension of X");
     }
 
-    int closest_i = -1;
+    int closest_i = 0;
     double closest_d2 = std::numeric_limits<double>::max();
 
     for (int i = 0; i < X->rowspi(0); i++) {
@@ -35,6 +35,9 @@ int assign(const SharedVector& v, const SharedMatrix& X) {
             closest_i = i;
         }
     }
+
+    // if v is so large that it has distance inf to everything,
+    // it'll just get assigned to 0.
     return closest_i;
 }
 
