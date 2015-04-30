@@ -1,7 +1,8 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
-#include <libplugin/plugin.h>
+#include <boost/filesystem.hpp>
 #include <psi4-dec.h>
+#include <libplugin/plugin.h>
 #include <libparallel/parallel.h>
 #include <liboptions/liboptions.h>
 #include <libmints/mints.h>
@@ -43,8 +44,8 @@ int read_options(std::string name, Options& options)
 
         options.add_str("MODE", "SAMPLE_V", "SAMPLE_V CALCULATE_X");
         options.add_int("NUM_SAMPLE_DESCRIPTORS", 100);
-        options.add_str("FILENAME", "descriptors.npy");
-        options.add_str("FILENAME_OUT", "grid.npy");
+        options.add_str("FILENAME_IN", "descriptors.npy");
+        options.add_str("FILENAME_OUT", "NULL");
     }
 
     return true;
@@ -57,25 +58,35 @@ PsiReturnType wavekernel(Options& options)
     PsiReturnType status;
     shared_ptr<MOSignature> mosig = shared_ptr<MOSignature>(new MOSignature(options));
 
-    std::string fn = options.get_str("FILENAME");
-    std::transform(fn.begin(), fn.end(), fn.begin(), ::tolower);
+    std::string fn_in = options.get_str("FILENAME_IN");
+    std::transform(fn_in.begin(), fn_in.end(), fn_in.begin(), ::tolower);
     std::string fn_out = options.get_str("FILENAME_OUT");
     std::transform(fn_out.begin(), fn_out.end(), fn_out.begin(), ::tolower);
 
     string mode = options.get_str("MODE");
     outfile->Printf("\n ======= Molecular Orbital Signature Plugin =======\n");
-    outfile->Printf("    gitversion = %s\n", GIT_VERSION);
-    outfile->Printf("    mode       = %s\n", mode.c_str());
-    outfile->Printf("    filename   = %s\n\n", fn.c_str());
+    outfile->Printf("    gitversion   = %s\n", GIT_VERSION);
+    outfile->Printf("    mode         = %s\n", mode.c_str());
+    outfile->Printf("    filename_in  = %s\n", fn_in.c_str());
+    outfile->Printf("    filename_out = %s\n\n", fn_out.c_str());
 
     if (mode == "SAMPLE_V") {
+        if (fn_out == "null") {
+            outfile->Printf("Error: must set filename_out option");
+            return Failure;
+        }
+
         int num_samples = options.get_int("NUM_SAMPLE_DESCRIPTORS");
         SharedMatrix v_samples = mosig->sample_v(num_samples);
-        outfile->Printf("Writing %d wavekernel descriptors, v, to %s\n", num_samples, fn.c_str());
-        save_npy(fn, v_samples);
+        outfile->Printf("Writing %d wavekernel descriptors, v, to %s\n", num_samples, fn_out.c_str());
+        save_npy(fn_out, v_samples);
     } else if (mode == "DUMP_S") {
         SharedMatrix output = SharedMatrix(new Matrix("output", mosig->grid()->npoints(), 4));
-        SharedMatrix basis = load_npy(fn);
+        if (!boost::filesystem::exists(fn_in)) {
+            outfile->Printf("Error: file does not exist: %s", fn_in.c_str());
+            return Failure;
+        }
+        SharedMatrix basis = load_npy(fn_in);
 
         int kk = 0;
         for (int Q = 0; Q < mosig->nblocks(); Q++) {
@@ -91,9 +102,19 @@ PsiReturnType wavekernel(Options& options)
         save_npy(fn_out, output);
 
     } else if (mode == "CALCULATE_X") {
-        SharedMatrix basis = load_npy(fn);
+        if (fn_out == "null") {
+            outfile->Printf("Error. Must set filename_out option");
+            return Failure;
+        }
+        if (!boost::filesystem::exists(fn_in)) {
+            outfile->Printf("Error: file does not exist: %s", fn_in.c_str());
+            return Failure;
+        }
+
+        SharedMatrix basis = load_npy(fn_in);
         SharedVector x = mosig->get_x(basis);
-        x->print();
+        outfile->Printf("Writing molecular vector, x, to %s\n", fn_out.c_str());
+        save_npy(fn_out, x);
     } else {
         return Failure;
     }

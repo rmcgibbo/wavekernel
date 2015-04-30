@@ -13,6 +13,7 @@ namespace psi{ namespace wavekernel {
 void inplace_element_square(const SharedMatrix& x);
 int assign(const SharedVector& v, const SharedMatrix& X);
 void save_npy(const std::string& file, const SharedMatrix& arr);
+void save_npy(const std::string& file, const SharedVector& arr);
 SharedMatrix load_npy(const std::string& file);
 
 }} /* namespace */

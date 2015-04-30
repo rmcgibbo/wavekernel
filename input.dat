@@ -18,11 +18,11 @@ set {
 
 
 set wavekernel {
-  filename vectors8.npy
+  filename_in vectors9.npy
+  filename_out discriptor.npy
   temp_max 100000.0
   # mode sample_v
-  # mode calculate_x
-  mode dump_s
+  mode calculate_x
 }
 
 energy('scf')

@@ -50,6 +50,17 @@ void save_npy(const std::string& file, const SharedMatrix& arr) {
     cnpy::npy_save(file, arr->get_pointer(), shape, 2, "w");
 }
 
+void save_npy(const std::string& file, const SharedVector& arr) {
+    if (arr->nirrep() != 1) {
+        throw PSIEXCEPTION("Only vectors with 1 irrep are supported!\n");
+    }
+
+    const unsigned int shape[] = {
+        static_cast<unsigned int>(arr->dimpi()[0]),};
+
+    cnpy::npy_save(file, arr->pointer(0), shape, 1, "w");
+}
+
 SharedMatrix load_npy(const std::string& file) {
     cnpy::NpyArray arr = cnpy::npy_load(file);
     if (arr.word_size != sizeof(double)) {
