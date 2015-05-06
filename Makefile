@@ -46,7 +46,7 @@ OBJDIR = $(PSI_OBJDIR)
 UNAME = $(shell uname)
 
 # Need to link against Psi4 plugin library
-PSIPLUGIN = -L$(OBJDIR)/lib -lplugin
+PSIPLUGIN = -L$(OBJDIR)/lib -lplugin -lboost_random
 
 DEPENDINCLUDE = $(notdir $(wildcard *.h*))
 

@@ -12,7 +12,6 @@
 #include <libfock/points.h>
 
 #include "matrixutils.hpp"
-// #include "utils.hpp"
 #include "mosignature.hpp"
 #include "fermilevel.hpp"
 #include "gitversion.hpp"

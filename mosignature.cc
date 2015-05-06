@@ -1,4 +1,5 @@
 #include <boost/random.hpp>
+#include <boost/random/random_device.hpp>
 
 #include "mosignature.hpp"
 #include "matrixutils.hpp"
@@ -48,7 +49,6 @@ MOSignature::MOSignature(Options& options) :
     } else {
         throw PSIEXCEPTION("Unknown reference: " + ref + "\n");
     }
-
 
     orbital_mixing_a_ = SharedMatrix(new Matrix("Orbital mixing A", num_temps_, wfn_->nmo()));
     orbital_mixing_b_ = SharedMatrix(new Matrix("Orbital mixing B", num_temps_, wfn_->nmo()));
@@ -138,6 +138,16 @@ void MOSignature::compute_v(int Q) {
 
     v_->accumulate_product(orbital_mixing_a_, psi_a);
     v_->accumulate_product(orbital_mixing_b_, psi_b);
+
+
+    // subtract out the temp=0 baseline from every point
+    double** p = v_->pointer(0);
+    for (int j = 0; j < v_->colspi(0); j++) {
+      double offset = p[0][j];
+      for (int i = 0; i < v_->rowspi(0); i++) {
+	p[i][j] = p[i][j] - offset;
+      }
+    }
 }
 
 
@@ -221,7 +231,9 @@ MOSignature::sample_block_subset_indices(size_t n_samples)
     }
     block_start.push_back(npoints);
 
-    boost::random::mt19937 gen(time(0));
+    boost::random_device seed_gen;
+    boost::random::mt19937 gen(seed_gen());
+    // boost::random::mt19937 gen(0.0);
     boost::random::uniform_int_distribution<size_t> dist(0, npoints-1);
     std::vector<size_t> samples;
     for (size_t i = 0; i < n_samples; i++) {
