@@ -1,5 +1,4 @@
 #include <boost/random.hpp>
-#include <boost/random/random_device.hpp>
 
 #include "mosignature.hpp"
 #include "matrixutils.hpp"
@@ -12,7 +11,6 @@ namespace psi{ namespace wavekernel{
 
 /* Boltzmann constant in [Hartree / K] */
 static const double BOLTZMANN = 3.166811429e-6;
-
 
 MOSignature::MOSignature(Options& options) :
     options_(options),
@@ -231,9 +229,19 @@ MOSignature::sample_block_subset_indices(size_t n_samples)
     }
     block_start.push_back(npoints);
 
-    boost::random_device seed_gen;
-    boost::random::mt19937 gen(seed_gen());
-    // boost::random::mt19937 gen(0.0);
+    static uint32_t seed = 0;
+    if (seed == 0) {
+      FILE *dev_urandom;
+      if((dev_urandom = fopen("/dev/urandom", "r")) == NULL)
+	throw PSIEXCEPTION("/dev/urandom read error");
+      if(fread(&seed, sizeof(seed), 1, dev_urandom) == 0)
+	throw PSIEXCEPTION("/dev/unrandom read error");
+      if(fclose(dev_urandom) != 0)
+	throw PSIEXCEPTION("/dev/unrandom read error");
+    }
+    static boost::random::mt19937 gen(seed);
+    //boost::random::mt19937 gen(0.0);
+
     boost::random::uniform_int_distribution<size_t> dist(0, npoints-1);
     std::vector<size_t> samples;
     for (size_t i = 0; i < n_samples; i++) {
