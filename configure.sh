@@ -1,6 +1,6 @@
 #!/bin/bash
 
-WHICH_PSI4=`which psi5`
+WHICH_PSI4=`which psi4`
 if [[ "$WHICH_PSI4" = "" ]]; then
     echo "Error: psi4: command not found"
     exit 1
@@ -41,6 +41,7 @@ NAME := $(shell basename `pwd`)
 
 # C++ source files for your plugin. By default we grab all *.cc files.
 CXXSRC := $(wildcard *.cc) $(wildcard */*.cc)
+INCLUDES := $(INCLUDES) -Ilibraries/
 
 # Used to determine linking flags.
 UNAME = $(shell uname)
@@ -65,22 +66,22 @@ ifeq ($(UNAME), Darwin)
 endif
 
 # The object files
-BINOBJ := $(notdir $(CXXSRC:%.cc=%.o))
+BINOBJ := $(addprefix obj/, $(notdir $(CXXSRC:%.cc=%.o)))
 
-gitversion.hpp: .git/HEAD .git/index
-	echo "const char *GIT_VERSION = \"$(shell git rev-parse --short HEAD)\";" > gitversion.hpp
-mosignature.o: mosignature.cc
-	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
-wavekernel.o: wavekernel.cc gitversion.hpp
-	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
-matrixutils.o: matrixutils.cc
-	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
-fermilevel.o: fermilevel.cc
-	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
-cnpy.o: cnpy/cnpy.cc
-	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
-brent.o: brent/brent.cc
-	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $<
+wavekernel/gitversion.hpp: .git/HEAD .git/index
+	echo "const char *GIT_VERSION = \"$(shell git rev-parse --short HEAD)\";" > $@
+obj/mosignature.o: wavekernel/mosignature.cc
+	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+obj/wavekernel.o: wavekernel/wavekernel.cc wavekernel/gitversion.hpp
+	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+obj/matrixutils.o: wavekernel//matrixutils.cc
+	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+obj/fermilevel.o: wavekernel//fermilevel.cc
+	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+obj/cnpy.o: libraries/cnpy/cnpy.cc
+	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+obj/brent.o: libraries/brent/brent.cc
+	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 $(PSITARGET): $(BINOBJ)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(CXXDEFS) $(PSIPLUGIN)
@@ -105,3 +106,4 @@ echo "" >> Makefile
 echo "$MAKEFILE_CONTENTS" >> Makefile
 
 echo "Writing Makefile"
+mkdir -p obj
