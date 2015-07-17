@@ -74,9 +74,9 @@ obj/mosignature.o: wavekernel/mosignature.cc
 	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 obj/wavekernel.o: wavekernel/wavekernel.cc wavekernel/gitversion.hpp
 	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
-obj/matrixutils.o: wavekernel//matrixutils.cc
+obj/matrixutils.o: wavekernel/matrixutils.cc
 	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
-obj/fermilevel.o: wavekernel//fermilevel.cc
+obj/fermilevel.o: wavekernel/fermilevel.cc
 	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 obj/cnpy.o: libraries/cnpy/cnpy.cc
 	$(CXX) $(CXXDEFS) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
