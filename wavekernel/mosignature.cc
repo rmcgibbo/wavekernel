@@ -14,7 +14,7 @@ static const double BOLTZMANN = 3.166811429e-6;
 
 MOSignature::MOSignature(Options& options) :
     options_(options),
-    num_temps_(options_.get_int("NUM_TEMPS")),
+    num_curve_(options_.get_int("NUM_CURVE")),
     wfn_(Process::environment.wavefunction()),
     num_electrons_(wfn_->nalpha() + wfn_->nbeta())
 {
@@ -33,25 +33,32 @@ MOSignature::MOSignature(Options& options) :
 
     std::string ref = options_.get_str("REFERENCE");
     if ((ref == "RKS") || (ref == "RHF")) {
-        properties_ = shared_ptr<PointFunctions>(
+        wfn_properties_ = shared_ptr<PointFunctions>(
             new RKSFunctions(wfn_->basisset(), max_points, max_functions));
-        properties_->set_ansatz(0);
-        properties_->set_Cs(wfn_->Ca());
-        properties_->set_pointers(wfn_->Da());
+        wfn_properties_->set_ansatz(0);
+        wfn_properties_->set_Cs(wfn_->Ca());
+        wfn_properties_->set_pointers(wfn_->Da());
     } else if ((ref == "UKS") || (ref == "UHF")) {
-        properties_ = shared_ptr<PointFunctions>(
+        wfn_properties_ = shared_ptr<PointFunctions>(
             new UKSFunctions(wfn_->basisset(), max_points, max_functions));
-        properties_->set_ansatz(0);
-        properties_->set_Cs(wfn_->Ca(), wfn_->Cb());
-        properties_->set_pointers(wfn_->Da(), wfn_->Db());
+        wfn_properties_->set_ansatz(0);
+        wfn_properties_->set_Cs(wfn_->Ca(), wfn_->Cb());
+        wfn_properties_->set_pointers(wfn_->Da(), wfn_->Db());
     } else {
         throw PSIEXCEPTION("Unknown reference: " + ref + "\n");
     }
 
-    orbital_mixing_a_ = SharedMatrix(new Matrix("Orbital mixing A", num_temps_, wfn_->nmo()));
-    orbital_mixing_b_ = SharedMatrix(new Matrix("Orbital mixing B", num_temps_, wfn_->nmo()));
+    sad_guess_ = shared_ptr<scf::SADGuess>(new scf::SADGuess(wfn_->basisset(), wfn_->nalpha(), wfn_->nbeta(), options_));
+    sad_guess_->compute_guess();
+    sad_properties_ = shared_ptr<UKSFunctions>(new UKSFunctions(wfn_->basisset(), max_points, max_functions));
+    sad_properties_->set_ansatz(0);
+    sad_properties_->set_Cs(sad_guess_->Ca(), sad_guess_->Cb());
+    sad_properties_->set_pointers(sad_guess_->Da(), sad_guess_->Db());
 
-    v_ = SharedMatrix(new Matrix("V_BLOCK", num_temps_, max_points));
+    orbital_mixing_a_ = SharedMatrix(new Matrix("Orbital mixing A", num_curve_, wfn_->nmo()));
+    orbital_mixing_b_ = SharedMatrix(new Matrix("Orbital mixing B", num_curve_, wfn_->nmo()));
+
+    v_ = SharedMatrix(new Matrix("V_BLOCK", num_curve_, max_points));
     s_ = SharedVector(new Vector("S_BLOCK", max_points));
 
     // copy wfn_->epsilon_a() and wfn_->epsilon_b() into a single vector
@@ -63,30 +70,57 @@ MOSignature::MOSignature(Options& options) :
         epsilon_->set(i + wfn_->epsilon_a()->dim(), wfn_->epsilon_b()->get(i));
     }
 
-    initialize_orbital_mixing();
+    if (options_.get_str("CURVE").compare("TEMP") == 0) {
+        initialize_orbital_mixing_by_temperature();
+    } else if (options_.get_str("CURVE").compare("MU") == 0) {
+        initialize_orbital_mixing_by_chemical_potential();
+    } else {
+        throw PSIEXCEPTION("Unknown curve: " + options_.get_str("CURVE") + "\n");
+    }
 }
 
+void MOSignature::initialize_orbital_mixing_by_chemical_potential() {
+    const double mu_min = options_.get_double("CURVE_MIN");
+    const double mu_max = options_.get_double("CURVE_MAX");
+    const double temp = options_.get_double("TEMP");
+    const double beta = 1 / (BOLTZMANN * temp);
+    outfile->Printf("\nInitializing Orbital mixing by chemical potential\n");
 
-void MOSignature::initialize_orbital_mixing() {
-    const double T_min = options_.get_double("TEMP_MIN");
-    const double T_max = options_.get_double("TEMP_MAX");
+    for (int i = 0; i < num_curve_; i++) {
+        double n_electrons = 0;
+        double mu = mu_min + ((mu_max - mu_min) / (num_curve_-1)) * i;
+        for (int j = 0; j < wfn_->nmo(); j++) {
+            double na = n_occ(wfn_->epsilon_a()->get(j), mu, beta);
+            double nb = n_occ(wfn_->epsilon_b()->get(j), mu, beta);
+            n_electrons += (na+nb);
+            orbital_mixing_a_->set(i, j, na);
+            orbital_mixing_b_->set(i, j, nb);
+        }
+        outfile->Printf("  mu=%f n_electrons=%f (%d)\n", mu, n_electrons, (wfn_->nalpha() + wfn_->nbeta()));
+    }
+}
 
-    // orbital_mixing_a_ is of dimension (num_temps_ x num_molecular_orbitals)
+void MOSignature::initialize_orbital_mixing_by_temperature() {
+    const double T_min = options_.get_double("CURVE_MIN");
+    const double T_max = options_.get_double("CURVE_MAX");
+    outfile->Printf("\nInitializing orbital mixing by temperature\n");
 
-    for (int i = 0; i < num_temps_; i++) {
-        double T = T_min + ((T_max - T_min) / (num_temps_-1)) * i;
+    // orbital_mixing_a_ is of dimension (num_curve_ x num_molecular_orbitals)
+
+    for (int i = 0; i < num_curve_; i++) {
+        double T = T_min + ((T_max - T_min) / (num_curve_-1)) * i;
         double beta = 1 / (BOLTZMANN * T);
-
         // compute the fermi level at this temperature
-        double mu = calculate_mu(num_electrons_, beta, epsilon_);
+        double mu = calculate_mu(num_electrons_, 1 / (BOLTZMANN * T), epsilon_);
 
-        // outfile->Printf("Temp:  %.3f K\n", T);
-        // outfile->Printf("beta:  %.3f 1/h\n", beta);
-        // outfile->Printf("fermi: %.3f h\n\n", mu);
+        outfile->Printf("Temp:  %.3f K\n", T);
+        outfile->Printf("beta:  %.3f 1/h\n", beta);
+        outfile->Printf("fermi: %.3f h\n\n", mu);
 
         for (int j = 0; j < wfn_->nmo(); j++) {
             double na = n_occ(wfn_->epsilon_a()->get(j), mu, beta);
             double nb = n_occ(wfn_->epsilon_b()->get(j), mu, beta);
+            //printf("%f ", na);
 
             orbital_mixing_a_->set(i, j, na);
             orbital_mixing_b_->set(i, j, nb);
@@ -124,9 +158,11 @@ void MOSignature::initialize_orbital_mixing() {
 */
 void MOSignature::compute_v(int Q) {
     shared_ptr<BlockOPoints> block = blocks()[Q];
-    properties_->compute_orbitals(block);
-    SharedMatrix psi_a = properties_->orbital_value("PSI_A");
-    SharedMatrix psi_b = properties_->orbital_value("PSI_B");
+    wfn_properties_->compute_orbitals(block);
+
+    // [number of MOs x n_max_points]
+    SharedMatrix psi_a = wfn_properties_->orbital_value("PSI_A");
+    SharedMatrix psi_b = wfn_properties_->orbital_value("PSI_B");
 
     inplace_element_square(psi_a);
     if (psi_a != psi_b) {
@@ -137,21 +173,23 @@ void MOSignature::compute_v(int Q) {
     v_->accumulate_product(orbital_mixing_a_, psi_a);
     v_->accumulate_product(orbital_mixing_b_, psi_b);
 
+    SharedVector sad_rho_a = sad_properties_->point_value("RHO_A");
+    SharedVector sad_rho_b = sad_properties_->point_value("RHO_B");
 
-    // subtract out the temp=0 baseline from every point
+    // subtract out the SAD density baseline from every point
     double** p = v_->pointer(0);
     for (int j = 0; j < v_->colspi(0); j++) {
-      double offset = p[0][j];
-      for (int i = 0; i < v_->rowspi(0); i++) {
-	p[i][j] = p[i][j] - offset;
-      }
+        double offset = sad_rho_a->get(j) + sad_rho_b->get(j);
+        for (int i = 0; i < v_->rowspi(0); i++) {
+            p[i][j] = p[i][j] - offset;
+        }
     }
 }
 
 
 SharedMatrix MOSignature::sample_v(size_t n_samples) {
     SharedMatrix v_samples = SharedMatrix(
-        new Matrix("V_BLOCK", n_samples, num_temps_));
+        new Matrix("V_BLOCK", n_samples, num_curve_));
     std::vector<std::vector<size_t> > block_indices = \
         sample_block_subset_indices(n_samples);
 
@@ -171,8 +209,8 @@ SharedMatrix MOSignature::sample_v(size_t n_samples) {
 void MOSignature::check_basis(const SharedMatrix& basis) {
     if (basis->nirrep() != 1)
         throw PSIEXCEPTION("Basis must have 1 irrep.\n");
-    if (basis->colspi(0) != num_temps_)
-        throw PSIEXCEPTION("Basis must have n_cols match num_temps_.\n");
+    if (basis->colspi(0) != num_curve_)
+        throw PSIEXCEPTION("Basis must have n_cols match num_curve_.\n");
 }
 
 
@@ -180,7 +218,7 @@ void MOSignature::compute_s(const SharedMatrix& basis, int Q) {
     check_basis(basis);
     compute_v(Q);
     shared_ptr<BlockOPoints> block = blocks()[Q];
-    properties_->compute_points(block);
+    wfn_properties_->compute_points(block);
 
     for (int i = 0; i < block->npoints(); i++) {
         int k = assign(v_->get_column(0, i), basis);
@@ -196,14 +234,14 @@ SharedVector MOSignature::get_x(const SharedMatrix& basis) {
     for (int Q = 0; Q < nblocks(); Q++) {
         compute_s(basis, Q);
         shared_ptr<BlockOPoints> block = blocks()[Q];
-        double* rho_a = properties_->point_value("RHO_A")->pointer();
-        double* rho_b = properties_->point_value("RHO_A")->pointer();
+        double* rho_a = wfn_properties_->point_value("RHO_A")->pointer();
+        double* rho_b = wfn_properties_->point_value("RHO_A")->pointer();
         double* w = block->w();
         for (int i = 0; i < block->npoints(); i++) {
             double xx = (rho_a[i] + rho_b[i]) * w[i];
             int s_i = static_cast<int>(s_->get(i));
             x->set(s_i, xx + x->get(s_i));
-	}
+        }
     }
 
     return x;

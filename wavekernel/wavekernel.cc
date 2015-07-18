@@ -32,17 +32,14 @@ int read_options(std::string name, Options& options)
     if (name == "WAVEKERNEL"|| options.read_globals()) {
         /*- The amount of information printed to the output file -*/
         options.add_int("PRINT", 1);
-/*
-        options.add_double("E_DESCRIPTOR_MIN", -20);
-        options.add_double("E_DESCRIPTOR_MAX", 0);
-        options.add_int("E_DESCRIPTOR_NUM", 20);
-        options.add_double("E_DESCRIPTOR_SIGMA", 2);
-*/
-        options.add_double("TEMP_MIN", 0);
-        options.add_double("TEMP_MAX", 5000);
-        options.add_int("NUM_TEMPS", 10);
+/
+        options.add_double("TEMP", 1000);
+        options.add_double("CURVE_MIN", 0);
+        options.add_double("CURVE_MAX", 5000);
+        options.add_int("NUM_CURVE", 10);
 
         options.add_str("MODE", "SAMPLE_V", "SAMPLE_V CALCULATE_X");
+        options.add_str("CURVE", "TEMP", "TEMP MU");
         options.add_int("NUM_SAMPLE_DESCRIPTORS", 100);
         options.add_str("FILENAME_IN", "descriptors.npy");
         options.add_str("FILENAME_OUT", "NULL");
@@ -125,4 +122,3 @@ PsiReturnType wavekernel(Options& options)
 
 
 }} // End namespaces
-

@@ -6,6 +6,22 @@ if [[ "$WHICH_PSI4" = "" ]]; then
     exit 1
 fi
 
+USECLANG=""
+while [[ $# > 0 ]]
+do
+    key="$1"
+    case $key in
+        --clang)
+            USECLANG=1
+            shift # past argument
+            ;;
+        *) # unknown option
+            ;;
+    esac
+    shift # past argument or value
+done
+
+
 
 TEMPDIR=`mktemp -d`
 pushd . >/dev/null
@@ -35,12 +51,17 @@ done < make.db.txt
 popd >/dev/null
 rm -rf $TEMPDIR
 
+if [[ $USECLANG != "" ]]; then
+  CXX="clang++ -g"
+fi
+
+
 MAKEFILE_CONTENTS=$(cat <<'EOF'
 # The name of your plugin. Taken from the directory name.
 NAME := $(shell basename `pwd`)
 
 # C++ source files for your plugin. By default we grab all *.cc files.
-CXXSRC := $(wildcard *.cc) $(wildcard */*.cc)
+CXXSRC := $(wildcard wavekernel/*.cc) $(wildcard libraries/*/*.cc)
 INCLUDES := $(INCLUDES) -Ilibraries/
 
 # Used to determine linking flags.
@@ -86,8 +107,12 @@ obj/brent.o: libraries/brent/brent.cc
 $(PSITARGET): $(BINOBJ)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(CXXDEFS) $(PSIPLUGIN)
 
-clean:
+clean: psiclean
 	rm -f $(BINOBJ) $(PSITARGET) *.d *.pyc *.test output.dat psi.timer.dat
+
+psiclean:
+	rm -f `cat psi.*.clean | xargs`
+	rm -f psi.*.clean  psi.*.clean.out timer.dat psi.timer.dat
 
 print-%:
 	@echo '$*=$($*)'

@@ -4,6 +4,7 @@
 #include <libfock/cubature.h>
 #include <libfock/points.h>
 #include <liboptions/liboptions.h>
+#include <libscf_solver/sad.h>
 
 using namespace boost;
 namespace psi{ namespace wavekernel {
@@ -14,9 +15,14 @@ private:
     shared_ptr<Wavefunction> wfn_;
     // R^3 point grid for spatial integrals
     shared_ptr<DFTGrid> grid_;
-    shared_ptr<PointFunctions> properties_;
+    shared_ptr<PointFunctions> wfn_properties_;
+    shared_ptr<UKSFunctions> sad_properties_;
+
     // Global options
     Options& options_;
+
+    // Superposition of atomic densities guess
+    shared_ptr<scf::SADGuess> sad_guess_;
 
     // Gaussian blur of the orbitals by energy
     SharedMatrix orbital_mixing_a_;
@@ -28,15 +34,13 @@ private:
     // MO energies, both alpha and beta together.
     SharedVector epsilon_;
 
-
-    const int num_temps_;
+    const int num_curve_;
     const int num_electrons_;
 
-    void initialize_orbital_mixing();
+    void initialize_orbital_mixing_by_temperature();
+    void initialize_orbital_mixing_by_chemical_potential();
     std::vector<std::vector<size_t> > sample_block_subset_indices(size_t n_samples);
     void check_basis(const SharedMatrix& basis);
-
-
 
 
 public:
