@@ -5,9 +5,11 @@
 #include <libfock/points.h>
 #include <liboptions/liboptions.h>
 #include <libscf_solver/sad.h>
+#include "matrixutils.hpp"
 
 using namespace boost;
-namespace psi{ namespace wavekernel {
+namespace psi {
+namespace wavekernel {
 
 class MOSignature {
 private:
@@ -33,6 +35,8 @@ private:
     SharedVector s_;
     // MO energies, both alpha and beta together.
     SharedVector epsilon_;
+    SharedVector epsilon_a_;
+    SharedVector epsilon_b_;
 
     const int num_curve_;
     const int num_electrons_;
@@ -44,6 +48,13 @@ private:
 
 
 public:
+    void dump_npz(const std::string& filename) {
+        save_npz(filename, orbital_mixing_a_, "orbtail_mixing_a", "w"); // "w" overwrites any existing file
+        save_npz(filename, orbital_mixing_b_, "orbital_mixing_b", "a");
+        save_npz(filename, epsilon_a_, "epsilon_a", "a");
+        save_npz(filename, epsilon_b_, "epsilon_b", "a");
+    }
+
     MOSignature(Options& options);
 
     void compute_v(int block);
@@ -51,14 +62,25 @@ public:
     SharedVector get_x(const SharedMatrix& basis);
     SharedMatrix sample_v(size_t n_samples);
 
-    SharedMatrix v() const { return v_; }
-    SharedVector s() const { return s_; }
+    SharedMatrix v() const {
+        return v_;
+    }
+    SharedVector s() const {
+        return s_;
+    }
 
-    int nblocks() const { return grid_->blocks().size(); }
-    const std::vector<shared_ptr<BlockOPoints> >& blocks() const { return grid_->blocks(); }
-    shared_ptr<DFTGrid> grid() const {return grid_; }
+    int nblocks() const {
+        return grid_->blocks().size();
+    }
+    const std::vector<shared_ptr<BlockOPoints> >& blocks() const {
+        return grid_->blocks();
+    }
+    shared_ptr<DFTGrid> grid() const {
+        return grid_;
+    }
 
 };
 
-}}
+}
+}
 #endif

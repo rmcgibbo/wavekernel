@@ -7,7 +7,8 @@
 
 using namespace psi;
 using namespace boost;
-namespace psi{ namespace wavekernel{
+namespace psi {
+namespace wavekernel {
 
 /* Boltzmann constant in [Hartree / K] */
 static const double BOLTZMANN = 3.166811429e-6;
@@ -16,14 +17,13 @@ MOSignature::MOSignature(Options& options) :
     options_(options),
     num_curve_(options_.get_int("NUM_CURVE")),
     wfn_(Process::environment.wavefunction()),
-    num_electrons_(wfn_->nalpha() + wfn_->nbeta())
-{
+    num_electrons_(wfn_->nalpha() + wfn_->nbeta()) {
     if (!wfn_) {
         throw PSIEXCEPTION("SCF has not been run yet!\n");
     }
 
     if (wfn_->nirrep() != 1) {
-        throw PSIEXCEPTION("This plugin is only implemented in the C1 symmetry group.");
+        throw PSIEXCEPTION("This plugin is only implemented for the C1 symmetry group.");
     }
 
     shared_ptr<Molecule> mol = Process::environment.molecule();
@@ -31,16 +31,16 @@ MOSignature::MOSignature(Options& options) :
     int max_points = grid_->max_points();
     int max_functions = grid_->max_functions();
 
+    // wfn_properties_ is a point manager that is used to compute the value of the
+    // MOs at particular real-space points provided by the integration grid.
     std::string ref = options_.get_str("REFERENCE");
     if ((ref == "RKS") || (ref == "RHF")) {
-        wfn_properties_ = shared_ptr<PointFunctions>(
-            new RKSFunctions(wfn_->basisset(), max_points, max_functions));
+        wfn_properties_ = shared_ptr<PointFunctions>(new RKSFunctions(wfn_->basisset(), max_points, max_functions));
         wfn_properties_->set_ansatz(0);
         wfn_properties_->set_Cs(wfn_->Ca());
         wfn_properties_->set_pointers(wfn_->Da());
     } else if ((ref == "UKS") || (ref == "UHF")) {
-        wfn_properties_ = shared_ptr<PointFunctions>(
-            new UKSFunctions(wfn_->basisset(), max_points, max_functions));
+        wfn_properties_ = shared_ptr<PointFunctions>(new UKSFunctions(wfn_->basisset(), max_points, max_functions));
         wfn_properties_->set_ansatz(0);
         wfn_properties_->set_Cs(wfn_->Ca(), wfn_->Cb());
         wfn_properties_->set_pointers(wfn_->Da(), wfn_->Db());
@@ -48,6 +48,7 @@ MOSignature::MOSignature(Options& options) :
         throw PSIEXCEPTION("Unknown reference: " + ref + "\n");
     }
 
+    // We also want to compute the value of the SAD guess at the same realspace points.
     sad_guess_ = shared_ptr<scf::SADGuess>(new scf::SADGuess(wfn_->basisset(), wfn_->nalpha(), wfn_->nbeta(), options_));
     sad_guess_->compute_guess();
     sad_properties_ = shared_ptr<UKSFunctions>(new UKSFunctions(wfn_->basisset(), max_points, max_functions));
@@ -61,13 +62,15 @@ MOSignature::MOSignature(Options& options) :
     v_ = SharedMatrix(new Matrix("V_BLOCK", num_curve_, max_points));
     s_ = SharedVector(new Vector("S_BLOCK", max_points));
 
-    // copy wfn_->epsilon_a() and wfn_->epsilon_b() into a single vector
-    epsilon_ = SharedVector(new Vector(wfn_->epsilon_a()->dim() + wfn_->epsilon_b()->dim()));
-    for (int i = 0; i < wfn_->epsilon_a()->dim(); i++) {
-        epsilon_->set(i, wfn_->epsilon_a()->get(i));
+    epsilon_a_ = wfn_->epsilon_a();
+    epsilon_b_ = wfn_->epsilon_b();
+    // copy epsilon_aand epsilon_b into a single vector
+    epsilon_ = SharedVector(new Vector(epsilon_a_->dim() + epsilon_b_->dim()));
+    for (int i = 0; i < epsilon_a_->dim(); i++) {
+        epsilon_->set(i, epsilon_a_->get(i));
     }
-    for (int i = 0; i < wfn_->epsilon_b()->dim(); i++) {
-        epsilon_->set(i + wfn_->epsilon_a()->dim(), wfn_->epsilon_b()->get(i));
+    for (int i = 0; i < epsilon_b_->dim(); i++) {
+        epsilon_->set(i + epsilon_a_->dim(), epsilon_b_->get(i));
     }
 
     if (options_.get_str("CURVE").compare("TEMP") == 0) {
@@ -77,6 +80,11 @@ MOSignature::MOSignature(Options& options) :
     } else {
         throw PSIEXCEPTION("Unknown curve: " + options_.get_str("CURVE") + "\n");
     }
+
+    if (options_.get_int("PRINT") > 0) {
+        outfile->Printf("Writing mosignature.npz");
+        dump_npz("mosignature.npz");
+    }
 }
 
 void MOSignature::initialize_orbital_mixing_by_chemical_potential() {
@@ -84,14 +92,14 @@ void MOSignature::initialize_orbital_mixing_by_chemical_potential() {
     const double mu_max = options_.get_double("CURVE_MAX");
     const double temp = options_.get_double("TEMP");
     const double beta = 1 / (BOLTZMANN * temp);
-    outfile->Printf("\nInitializing Orbital mixing by chemical potential\n");
+    outfile->Printf("\nInitializing orbital mixing by chemical potential\n");
 
     for (int i = 0; i < num_curve_; i++) {
         double n_electrons = 0;
         double mu = mu_min + ((mu_max - mu_min) / (num_curve_-1)) * i;
         for (int j = 0; j < wfn_->nmo(); j++) {
-            double na = n_occ(wfn_->epsilon_a()->get(j), mu, beta);
-            double nb = n_occ(wfn_->epsilon_b()->get(j), mu, beta);
+            double na = n_occ(epsilon_a_->get(j), mu, beta);
+            double nb = n_occ(epsilon_b_->get(j), mu, beta);
             n_electrons += (na+nb);
             orbital_mixing_a_->set(i, j, na);
             orbital_mixing_b_->set(i, j, nb);
@@ -118,8 +126,8 @@ void MOSignature::initialize_orbital_mixing_by_temperature() {
         outfile->Printf("fermi: %.3f h\n\n", mu);
 
         for (int j = 0; j < wfn_->nmo(); j++) {
-            double na = n_occ(wfn_->epsilon_a()->get(j), mu, beta);
-            double nb = n_occ(wfn_->epsilon_b()->get(j), mu, beta);
+            double na = n_occ(epsilon_a_->get(j), mu, beta);
+            double nb = n_occ(epsilon_b_->get(j), mu, beta);
             //printf("%f ", na);
 
             orbital_mixing_a_->set(i, j, na);
@@ -189,9 +197,9 @@ void MOSignature::compute_v(int Q) {
 
 SharedMatrix MOSignature::sample_v(size_t n_samples) {
     SharedMatrix v_samples = SharedMatrix(
-        new Matrix("V_BLOCK", n_samples, num_curve_));
+                                 new Matrix("V_BLOCK", n_samples, num_curve_));
     std::vector<std::vector<size_t> > block_indices = \
-        sample_block_subset_indices(n_samples);
+            sample_block_subset_indices(n_samples);
 
     size_t j = 0;
     for (int Q = 0; Q < nblocks(); Q++) {
@@ -207,10 +215,12 @@ SharedMatrix MOSignature::sample_v(size_t n_samples) {
 
 
 void MOSignature::check_basis(const SharedMatrix& basis) {
-    if (basis->nirrep() != 1)
+    if (basis->nirrep() != 1) {
         throw PSIEXCEPTION("Basis must have 1 irrep.\n");
-    if (basis->colspi(0) != num_curve_)
+    }
+    if (basis->colspi(0) != num_curve_) {
         throw PSIEXCEPTION("Basis must have n_cols match num_curve_.\n");
+    }
 }
 
 
@@ -257,8 +267,7 @@ SharedVector MOSignature::get_x(const SharedMatrix& basis) {
     the internal indexing scheme of the block, not the global indexing)
 */
 std::vector<std::vector<size_t> >
-MOSignature::sample_block_subset_indices(size_t n_samples)
-{
+MOSignature::sample_block_subset_indices(size_t n_samples) {
     size_t npoints = 0;  // total number of points in the grid
     std::vector<size_t> block_start;  // starting index of each block
     for (size_t Q = 0; Q < blocks().size(); Q++) {
@@ -269,16 +278,19 @@ MOSignature::sample_block_subset_indices(size_t n_samples)
 
     static uint32_t seed = 0;
     if (seed == 0) {
-      FILE *dev_urandom;
-      if((dev_urandom = fopen("/dev/urandom", "r")) == NULL)
-	throw PSIEXCEPTION("/dev/urandom read error");
-      if(fread(&seed, sizeof(seed), 1, dev_urandom) == 0)
-	throw PSIEXCEPTION("/dev/unrandom read error");
-      if(fclose(dev_urandom) != 0)
-	throw PSIEXCEPTION("/dev/unrandom read error");
+        FILE *dev_urandom;
+        if ((dev_urandom = fopen("/dev/urandom", "r")) == NULL) {
+            throw PSIEXCEPTION("/dev/urandom read error");
+        }
+        if (fread(&seed, sizeof(seed), 1, dev_urandom) == 0) {
+            throw PSIEXCEPTION("/dev/unrandom read error");
+        }
+        if (fclose(dev_urandom) != 0) {
+            throw PSIEXCEPTION("/dev/unrandom read error");
+        }
     }
     static boost::random::mt19937 gen(seed);
-    //boost::random::mt19937 gen(0.0);
+    //boost::random::mt19937 gen(0);
 
     boost::random::uniform_int_distribution<size_t> dist(0, npoints-1);
     std::vector<size_t> samples;
@@ -290,15 +302,23 @@ MOSignature::sample_block_subset_indices(size_t n_samples)
 
     size_t j = 0;
     for (size_t i = 0; i < n_samples; i++) {
-        if (samples[i] >= block_start[j+1]) {
+        while (samples[i] >= block_start[j+1]) {
             j += 1;
         }
         block_indices[j].push_back(samples[i] - block_start[j]);
     }
+
+    for (size_t i = 0; i < blocks().size(); i++)
+        for (size_t j = 0; j < block_indices[i].size(); j++)
+            if (block_indices[i][j] > blocks()[i]->npoints()) {
+                throw PSIEXCEPTION("Indexing Error");
+            }
+
 
     return block_indices;
 }
 
 
 
-}} /* namespace */
+}
+} /* namespace */

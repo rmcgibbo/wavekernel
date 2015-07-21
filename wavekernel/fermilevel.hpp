@@ -5,7 +5,8 @@
 #include <libmints/mints.h>
 #include "brent/brent.hpp"
 
-namespace psi{ namespace wavekernel {
+namespace psi {
+namespace wavekernel {
 
 /*
 Fermi-Dirac occupation number of a single energy level at energy `eps_j`
@@ -24,5 +25,6 @@ Returns: mu, the fermi level.
 */
 double calculate_mu(double N, double beta, const SharedVector& epsilon);
 
-}} // namespace
+}
+} // namespace
 #endif

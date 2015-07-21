@@ -24,15 +24,15 @@ using std::string;
 using boost::shared_ptr;
 using namespace boost;
 
-namespace psi{ namespace wavekernel {
+namespace psi {
+namespace wavekernel {
 
 extern "C"
-int read_options(std::string name, Options& options)
-{
+int read_options(std::string name, Options& options) {
     if (name == "WAVEKERNEL"|| options.read_globals()) {
         /*- The amount of information printed to the output file -*/
-        options.add_int("PRINT", 1);
-/
+        options.add_int("PRINT", 0);
+
         options.add_double("TEMP", 1000);
         options.add_double("CURVE_MIN", 0);
         options.add_double("CURVE_MAX", 5000);
@@ -50,8 +50,7 @@ int read_options(std::string name, Options& options)
 
 
 extern "C"
-PsiReturnType wavekernel(Options& options)
-{
+PsiReturnType wavekernel(Options& options) {
     PsiReturnType status;
     shared_ptr<MOSignature> mosig = shared_ptr<MOSignature>(new MOSignature(options));
 
@@ -121,4 +120,5 @@ PsiReturnType wavekernel(Options& options)
 }
 
 
-}} // End namespaces
+}
+} // End namespaces

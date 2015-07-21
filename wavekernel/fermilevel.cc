@@ -1,14 +1,16 @@
 #include "fermilevel.hpp"
 using namespace psi;
-namespace psi{ namespace wavekernel{
+namespace psi {
+namespace wavekernel {
 
 
 double n_occ(double eps_j, double mu, double beta) {
     if (std::isinf(beta)) {
-        if (eps_j < mu)
+        if (eps_j < mu) {
             return 1.0;
-        else
+        } else {
             return 0.0;
+        }
     }
 
     return 1 / (1 + std::exp(beta * (eps_j - mu)));
@@ -52,4 +54,5 @@ double calculate_mu(double N, double beta, const SharedVector& epsilon) {
     return brent::zero(min, max, brent::r8_epsilon(), occ);
 }
 
-}} // namespace
+}
+} // namespace

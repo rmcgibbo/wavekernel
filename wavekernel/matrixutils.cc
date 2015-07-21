@@ -3,7 +3,8 @@
 
 using namespace boost;
 using namespace psi;
-namespace psi{ namespace wavekernel {
+namespace psi {
+namespace wavekernel {
 
 
 void inplace_element_square(const SharedMatrix& x) {
@@ -19,7 +20,7 @@ void inplace_element_square(const SharedMatrix& x) {
 
 int assign(const SharedVector& v, const SharedMatrix& X) {
     if (v->dim(0) != X->colspi(0)) {
-         throw PSIEXCEPTION("len(v) must be equal to the 2nd dimension of X");
+        throw PSIEXCEPTION("len(v) must be equal to the 2nd dimension of X");
     }
 
     int closest_i = 0;
@@ -49,7 +50,8 @@ void save_npy(const std::string& file, const SharedMatrix& arr) {
 
     const unsigned int shape[] = {
         static_cast<unsigned int>(arr->rowspi(0)),
-        static_cast<unsigned int>(arr->colspi(0))};
+        static_cast<unsigned int>(arr->colspi(0))
+    };
     cnpy::npy_save(file, arr->get_pointer(), shape, 2, "w");
 }
 
@@ -59,7 +61,8 @@ void save_npy(const std::string& file, const SharedVector& arr) {
     }
 
     const unsigned int shape[] = {
-        static_cast<unsigned int>(arr->dimpi()[0]),};
+        static_cast<unsigned int>(arr->dimpi()[0]),
+    };
 
     cnpy::npy_save(file, arr->pointer(0), shape, 1, "w");
 }
@@ -74,12 +77,32 @@ SharedMatrix load_npy(const std::string& file) {
     }
     double* data = reinterpret_cast<double*>(arr.data);
 
-
-    SharedMatrix out = SharedMatrix(
-        new Matrix(file, arr.shape[0], arr.shape[1]));
+    SharedMatrix out = SharedMatrix(new Matrix(file, arr.shape[0], arr.shape[1]));
     memcpy(out->get_pointer(), data, sizeof(double)*arr.shape[0]*arr.shape[1]);
     return out;
 }
 
+void save_npz(const std::string& file, const SharedMatrix& arr, const std::string& name, std::string mode) {
+    if (arr->nirrep() != 1) {
+        throw PSIEXCEPTION("Only vectors with 1 irrep are supported!\n");
+    }
+    const unsigned int shape[] = {
+        static_cast<unsigned int>(arr->rowspi(0)),
+        static_cast<unsigned int>(arr->colspi(0))
+    };
+    cnpy::npz_save(file, name, arr->get_pointer(), shape, 2, mode);
+}
 
-}}
+void save_npz(const std::string& file, const SharedVector& arr, const std::string& name, std::string mode) {
+    if (arr->nirrep() != 1) {
+        throw PSIEXCEPTION("Only vectors with 1 irrep are supported!\n");
+    }
+    const unsigned int shape[] = {
+        static_cast<unsigned int>(arr->dimpi()[0]),
+    };
+    cnpy::npz_save(file, name, arr->pointer(0), shape, 1, mode);
+}
+
+
+}
+}
