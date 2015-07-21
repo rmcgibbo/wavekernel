@@ -73,9 +73,11 @@ PsiReturnType wavekernel(Options& options) {
         }
 
         int num_samples = options.get_int("NUM_SAMPLE_DESCRIPTORS");
-        SharedMatrix v_samples = mosig->sample_v(num_samples);
+        SharedMatrix coords = SharedMatrix(new Matrix("coords", num_samples, 3));
+        SharedMatrix v_samples = mosig->sample_v(num_samples, coords);
         outfile->Printf("Writing %d wavekernel descriptors, v, to %s\n", num_samples, fn_out.c_str());
-        save_npy(fn_out, v_samples);
+        save_npz(fn_out, v_samples, "v_samples", "w");
+        save_npz(fn_out, coords, "coords", "a");
     } else if (mode == "DUMP_S") {
         SharedMatrix output = SharedMatrix(new Matrix("output", mosig->grid()->npoints(), 4));
         if (!boost::filesystem::exists(fn_in)) {

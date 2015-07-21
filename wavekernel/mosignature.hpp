@@ -60,7 +60,7 @@ public:
     void compute_v(int block);
     void compute_s(const SharedMatrix& basis, int block);
     SharedVector get_x(const SharedMatrix& basis);
-    SharedMatrix sample_v(size_t n_samples);
+    SharedMatrix sample_v(size_t n_samples, SharedMatrix coords);
 
     SharedMatrix v() const {
         return v_;

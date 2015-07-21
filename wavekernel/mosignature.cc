@@ -167,6 +167,7 @@ void MOSignature::initialize_orbital_mixing_by_temperature() {
 void MOSignature::compute_v(int Q) {
     shared_ptr<BlockOPoints> block = blocks()[Q];
     wfn_properties_->compute_orbitals(block);
+    sad_properties_->compute_points(block);
 
     // [number of MOs x n_max_points]
     SharedMatrix psi_a = wfn_properties_->orbital_value("PSI_A");
@@ -189,24 +190,31 @@ void MOSignature::compute_v(int Q) {
     for (int j = 0; j < v_->colspi(0); j++) {
         double offset = sad_rho_a->get(j) + sad_rho_b->get(j);
         for (int i = 0; i < v_->rowspi(0); i++) {
+            //printf("%f, %f\n", p[i][j], offset);
             p[i][j] = p[i][j] - offset;
         }
     }
 }
 
 
-SharedMatrix MOSignature::sample_v(size_t n_samples) {
-    SharedMatrix v_samples = SharedMatrix(
-                                 new Matrix("V_BLOCK", n_samples, num_curve_));
+SharedMatrix MOSignature::sample_v(size_t n_samples, SharedMatrix coords) {
+    SharedMatrix v_samples = SharedMatrix(new Matrix("V_BLOCK", n_samples, num_curve_));
     std::vector<std::vector<size_t> > block_indices = \
             sample_block_subset_indices(n_samples);
 
     size_t j = 0;
     for (int Q = 0; Q < nblocks(); Q++) {
         compute_v(Q);
-        for (size_t i = 0; i < block_indices[Q].size(); i++, j++) {
-            SharedVector vv = v_->get_column(0, block_indices[Q][i]);
+        double* x =  blocks()[Q]->x();
+        double* y =  blocks()[Q]->y();
+        double* z =  blocks()[Q]->z();
+        std::vector<size_t> indices = block_indices[Q];
+        for (size_t i = 0; i < indices.size(); i++, j++) {
+            SharedVector vv = v_->get_column(0, indices[i]);
             v_samples->set_row(0, j, vv);
+            coords->set(j, 0, x[indices[i]]);
+            coords->set(j, 1, y[indices[i]]);
+            coords->set(j, 2, z[indices[i]]);
         }
     }
 

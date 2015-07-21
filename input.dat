@@ -1,25 +1,5 @@
 plugin_load('./wavekernel.so')
 
-# molecule ch4 {
-#   symmetry c1
-#   0 1
-#   C       -0.6936686254     0.6473008502    -1.0185230105
-#   O        0.6899332619     0.8723782797    -0.8047391975
-#   C        1.0547730247     2.2552238183    -0.8153950069
-#   C        0.5886317653     2.9704075591     0.4466477391
-#   C        2.5654309048     2.2774815578    -0.9574793244
-#   H       -0.8167719251    -0.4313443313    -1.1276806630
-#   H       -1.0409074470     1.1436006041    -1.9357966361
-#   H       -1.3115244630     0.9891898041    -0.1791478421
-#   H        0.5966958802     2.7350498448    -1.6969704980
-#   H        1.0061776263     2.4670709598     1.3233354923
-#   H        0.9279469795     4.0107928997     0.4444489931
-#   H       -0.5005807593     2.9753865021     0.5356917132
-#   H        2.8660175605     1.7486384695    -1.8646094745
-#   H        2.9365794854     3.3053037679    -1.0051736633
-#   H        3.0218087313     1.7783174142    -0.0983196212
-# }
-
 molecule benzoicacid {
   symmetry c1
   O          2.189488833286    -1.171224035843     0.000782746866
@@ -39,23 +19,20 @@ molecule benzoicacid {
   H          3.170088833286    -1.140524035843     0.001082746866
 }
 
-#molecule benzene {
-#    symmetry c1
-#    pubchem:benzoic acid
-#}
-
 set {
   basis 6-31g*
   reference uhf
-  dft_grid_name sg0
+  dft_grid_name sg1
 }
 
 
 set wavekernel {
   filename_in vectors9.npy
-  filename_out sample_v.npy
+  filename_out sample_v.npz
   mode sample_v
+  num_sample_descriptors 10000
 
+  print 0
   #curve temp
   #curve_min 300.0
   #curve_max 100000.0
@@ -64,6 +41,7 @@ set wavekernel {
   curve_min -0.5
   curve_max 0.5
   temp 10000.0
+  # temp 0.0
   num_curve 20
 }
 
