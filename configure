@@ -22,8 +22,7 @@ do
 done
 
 
-
-TEMPDIR=`mktemp -d`
+TEMPDIR=`mktemp -d /tmp/foo.XXXXXXXXX`
 pushd . >/dev/null
 cd $TEMPDIR
 # run psi4 --new-plugin-makefile in a temporary directory
@@ -119,7 +118,7 @@ print-%:
 EOF
 )
 
-rm Makefile
+rm -f Makefile
 echo "CXX = ${CXX}" >> Makefile
 echo "CXXDEFS = ${CXXDEFS}" >> Makefile
 echo "CXXFLAGS = ${CXXFLAGS}" >> Makefile
