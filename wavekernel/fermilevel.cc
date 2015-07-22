@@ -16,6 +16,16 @@ double n_occ(double eps_j, double mu, double beta) {
     return 1 / (1 + std::exp(beta * (eps_j - mu)));
 }
 
+double n_occ_prime(double eps_j, double mu, double beta) {
+    if (std::isinf(beta)) {
+        // not differentiable at eps_j == mu if beta is inf...
+        return 0;
+    }
+
+    double temp = (std::exp(beta*eps_j) + std::exp(beta*mu));
+    return beta * std::exp(beta*(eps_j + mu)) / (temp * temp);
+}
+
 
 
 double calculate_mu(double N, double beta, const SharedVector& epsilon) {

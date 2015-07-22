@@ -32,6 +32,7 @@ int read_options(std::string name, Options& options) {
     if (name == "WAVEKERNEL"|| options.read_globals()) {
         /*- The amount of information printed to the output file -*/
         options.add_int("PRINT", 0);
+        options.add_bool("SUBTRACT_SAD", true);
 
         options.add_double("TEMP", 1000);
         options.add_double("CURVE_MIN", 0);

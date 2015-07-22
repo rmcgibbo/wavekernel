@@ -18,6 +18,13 @@ double n_occ(double eps_j, double mu, double beta);
 
 
 /*
+Derivative with respect to `mu` of the the Fermi-Dirac occupation of
+a single energy level at `eps_j` at fermi level `mu` and inverse
+temperature `beta`.
+*/
+double n_occ_prime(double eps_j, double mu, double beta);
+
+/*
 Calculate the Fermi level of an ensemble containing `N` electrons (on average)
 at an inverse temperature `beta` with orbitals of energies `epsilon`.
 

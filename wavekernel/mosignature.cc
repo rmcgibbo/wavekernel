@@ -167,7 +167,6 @@ void MOSignature::initialize_orbital_mixing_by_temperature() {
 void MOSignature::compute_v(int Q) {
     shared_ptr<BlockOPoints> block = blocks()[Q];
     wfn_properties_->compute_orbitals(block);
-    sad_properties_->compute_points(block);
 
     // [number of MOs x n_max_points]
     SharedMatrix psi_a = wfn_properties_->orbital_value("PSI_A");
@@ -182,16 +181,19 @@ void MOSignature::compute_v(int Q) {
     v_->accumulate_product(orbital_mixing_a_, psi_a);
     v_->accumulate_product(orbital_mixing_b_, psi_b);
 
-    SharedVector sad_rho_a = sad_properties_->point_value("RHO_A");
-    SharedVector sad_rho_b = sad_properties_->point_value("RHO_B");
 
-    // subtract out the SAD density baseline from every point
-    double** p = v_->pointer(0);
-    for (int j = 0; j < v_->colspi(0); j++) {
-        double offset = sad_rho_a->get(j) + sad_rho_b->get(j);
-        for (int i = 0; i < v_->rowspi(0); i++) {
-            //printf("%f, %f\n", p[i][j], offset);
-            p[i][j] = p[i][j] - offset;
+    if (options_.get_bool("SUBTRACT_SAD")) {
+        sad_properties_->compute_points(block);
+        SharedVector sad_rho_a = sad_properties_->point_value("RHO_A");
+        SharedVector sad_rho_b = sad_properties_->point_value("RHO_B");
+
+        // subtract out the SAD density baseline from every point
+        double** p = v_->pointer(0);
+        for (int j = 0; j < v_->colspi(0); j++) {
+            double offset = sad_rho_a->get(j) + sad_rho_b->get(j);
+            for (int i = 0; i < v_->rowspi(0); i++) {
+                p[i][j] = p[i][j] - offset;
+            }
         }
     }
 }
