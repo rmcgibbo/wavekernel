@@ -1,8 +1,13 @@
 #!/bin/bash
 
 WHICH_PSI4=`which psi4`
+WHICH_PYTHON=`which python`
 if [[ "$WHICH_PSI4" = "" ]]; then
     echo "Error: psi4: command not found"
+    exit 1
+fi
+if [[ "$WHICH_PYTHON" = "" ]]; then
+    echo "Error: python: command not found"
     exit 1
 fi
 
@@ -21,8 +26,8 @@ do
     shift # past argument or value
 done
 
-
-TEMPDIR=`mktemp -d /tmp/foo.XXXXXXXXX`
+# work around unix mktemp being different from one another
+TEMPDIR=`$WHICH_PYTHON -c 'import tempfile; print(tempfile.mkdtemp())'`
 pushd . >/dev/null
 cd $TEMPDIR
 # run psi4 --new-plugin-makefile in a temporary directory

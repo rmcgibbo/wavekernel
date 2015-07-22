@@ -8,3 +8,4 @@ wavekernel.d
 *.o
 gitversion.hpp
 Makefile
+*.npz
