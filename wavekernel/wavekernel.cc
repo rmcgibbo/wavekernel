@@ -40,7 +40,7 @@ int read_options(std::string name, Options& options) {
         options.add_int("NUM_CURVE", 10);
 
         options.add_str("MODE", "SAMPLE_V", "SAMPLE_V CALCULATE_X");
-        options.add_str("CURVE", "TEMP", "TEMP MU");
+        options.add_str("CURVE", "TEMP", "TEMP MU MU_PRIME");
         options.add_int("NUM_SAMPLE_DESCRIPTORS", 100);
         options.add_str("FILENAME_IN", "descriptors.npy");
         options.add_str("FILENAME_OUT", "NULL");

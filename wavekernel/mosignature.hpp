@@ -42,7 +42,7 @@ private:
     const int num_electrons_;
 
     void initialize_orbital_mixing_by_temperature();
-    void initialize_orbital_mixing_by_chemical_potential();
+    void initialize_orbital_mixing_by_chemical_potential(double (*occ)(double, double, double));
     std::vector<std::vector<size_t> > sample_block_subset_indices(size_t n_samples);
     void check_basis(const SharedMatrix& basis);
 

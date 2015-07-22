@@ -74,9 +74,14 @@ MOSignature::MOSignature(Options& options) :
     }
 
     if (options_.get_str("CURVE").compare("TEMP") == 0) {
+        outfile->Printf("\nInitializing orbital mixing by temperature\n");
         initialize_orbital_mixing_by_temperature();
     } else if (options_.get_str("CURVE").compare("MU") == 0) {
-        initialize_orbital_mixing_by_chemical_potential();
+        outfile->Printf("\nInitializing orbital mixing by chemical potential\n");
+        initialize_orbital_mixing_by_chemical_potential(&n_occ);
+    } else if (options_.get_str("CURVE").compare("MU_PRIME") == 0) {
+        outfile->Printf("\nInitializing orbital mixing by chemical potential with n_occ_primec\n");
+        initialize_orbital_mixing_by_chemical_potential(&n_occ_prime);
     } else {
         throw PSIEXCEPTION("Unknown curve: " + options_.get_str("CURVE") + "\n");
     }
@@ -87,19 +92,20 @@ MOSignature::MOSignature(Options& options) :
     }
 }
 
-void MOSignature::initialize_orbital_mixing_by_chemical_potential() {
+void MOSignature::initialize_orbital_mixing_by_chemical_potential(
+    double (*occ)(double, double, double))
+{
     const double mu_min = options_.get_double("CURVE_MIN");
     const double mu_max = options_.get_double("CURVE_MAX");
     const double temp = options_.get_double("TEMP");
     const double beta = 1 / (BOLTZMANN * temp);
-    outfile->Printf("\nInitializing orbital mixing by chemical potential\n");
 
     for (int i = 0; i < num_curve_; i++) {
         double n_electrons = 0;
         double mu = mu_min + ((mu_max - mu_min) / (num_curve_-1)) * i;
         for (int j = 0; j < wfn_->nmo(); j++) {
-            double na = n_occ(epsilon_a_->get(j), mu, beta);
-            double nb = n_occ(epsilon_b_->get(j), mu, beta);
+            double na = occ(epsilon_a_->get(j), mu, beta);
+            double nb = occ(epsilon_b_->get(j), mu, beta);
             n_electrons += (na+nb);
             orbital_mixing_a_->set(i, j, na);
             orbital_mixing_b_->set(i, j, nb);
@@ -111,7 +117,6 @@ void MOSignature::initialize_orbital_mixing_by_chemical_potential() {
 void MOSignature::initialize_orbital_mixing_by_temperature() {
     const double T_min = options_.get_double("CURVE_MIN");
     const double T_max = options_.get_double("CURVE_MAX");
-    outfile->Printf("\nInitializing orbital mixing by temperature\n");
 
     // orbital_mixing_a_ is of dimension (num_curve_ x num_molecular_orbitals)
 
@@ -180,7 +185,6 @@ void MOSignature::compute_v(int Q) {
 
     v_->accumulate_product(orbital_mixing_a_, psi_a);
     v_->accumulate_product(orbital_mixing_b_, psi_b);
-
 
     if (options_.get_bool("SUBTRACT_SAD")) {
         sad_properties_->compute_points(block);

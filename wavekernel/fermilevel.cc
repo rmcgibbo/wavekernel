@@ -22,8 +22,15 @@ double n_occ_prime(double eps_j, double mu, double beta) {
         return 0;
     }
 
-    double temp = (std::exp(beta*eps_j) + std::exp(beta*mu));
-    return beta * std::exp(beta*(eps_j + mu)) / (temp * temp);
+    // double temp = (std::exp(beta*eps_j) + std::exp(beta*mu));
+    // double result = beta * std::exp(beta*(eps_j + mu)) / (temp * temp);
+    double result = beta / (2*std::cosh(beta*(eps_j - mu)) + 2);
+    if (std::isnan(result)) {
+        fprintf(stderr, "beta=%f, eps_j=%f, mu=%f]n", beta, eps_j, mu);
+        throw PSIEXCEPTION("BAD!");
+    }
+
+    return result;
 }
 
 

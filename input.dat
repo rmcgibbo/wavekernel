@@ -37,10 +37,12 @@ set wavekernel {
   #curve_min 300.0
   #curve_max 100000.0
 
-  curve mu
+  curve mu_prime
+  subtract_sad false
+
   curve_min -0.5
   curve_max 0.5
-  temp 10000.0
+  temp 1000.0
   # temp 0.0
   num_curve 20
 }
