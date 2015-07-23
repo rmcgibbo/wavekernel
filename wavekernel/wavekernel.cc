@@ -39,7 +39,7 @@ int read_options(std::string name, Options& options) {
         options.add_double("CURVE_MAX", 5000);
         options.add_int("NUM_CURVE", 10);
 
-        options.add_str("MODE", "SAMPLE_V", "SAMPLE_V CALCULATE_X");
+        options.add_str("MODE", "SAMPLE_V", "SAMPLE_V DUMP_V CALCULATE_X");
         options.add_str("CURVE", "TEMP", "TEMP MU MU_PRIME");
         options.add_int("NUM_SAMPLE_DESCRIPTORS", 100);
         options.add_str("FILENAME_IN", "descriptors.npy");
@@ -77,8 +77,19 @@ PsiReturnType wavekernel(Options& options) {
         SharedMatrix coords = SharedMatrix(new Matrix("coords", num_samples, 3));
         SharedMatrix v_samples = mosig->sample_v(num_samples, coords);
         outfile->Printf("Writing %d wavekernel descriptors, v, to %s\n", num_samples, fn_out.c_str());
-        save_npz(fn_out, v_samples, "v_samples", "w");
+        save_npz(fn_out, v_samples, "v", "w");
         save_npz(fn_out, coords, "coords", "a");
+    } else if (mode == "DUMP_V") {
+        if (fn_out == "null") {
+            outfile->Printf("Error: must set filename_out option");
+            return Failure;
+        }
+
+        SharedMatrix coords = mosig->All_coords();
+        save_npz(fn_out, coords, "coords", "w");
+        SharedMatrix v = mosig->All_v();
+        save_npz(fn_out, v, "v", "a");
+
     } else if (mode == "DUMP_S") {
         SharedMatrix output = SharedMatrix(new Matrix("output", mosig->grid()->npoints(), 4));
         if (!boost::filesystem::exists(fn_in)) {

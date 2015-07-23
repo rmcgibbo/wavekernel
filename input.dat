@@ -27,23 +27,18 @@ set {
 
 
 set wavekernel {
-  filename_in vectors9.npy
-  filename_out sample_v.npz
-  mode sample_v
+  #filename_in vectors9.npy
+  filename_out v.npz
+  mode dump_v
   num_sample_descriptors 10000
 
-  print 0
-  #curve temp
-  #curve_min 300.0
-  #curve_max 100000.0
-
-  curve mu_prime
-  subtract_sad false
-
+  curve mu
+  subtract_sad true
+  
+  curve mu
   curve_min -0.5
   curve_max 0.5
-  temp 1000.0
-  # temp 0.0
+  temp 10000.0
   num_curve 20
 }
 

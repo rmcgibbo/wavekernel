@@ -79,6 +79,10 @@ public:
         return grid_;
     }
 
+    SharedMatrix All_coords();
+
+    SharedMatrix All_v();
+
 };
 
 }

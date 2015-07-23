@@ -187,6 +187,7 @@ void MOSignature::compute_v(int Q) {
     v_->accumulate_product(orbital_mixing_b_, psi_b);
 
     if (options_.get_bool("SUBTRACT_SAD")) {
+        printf("Subtract SAD\n");
         sad_properties_->compute_points(block);
         SharedVector sad_rho_a = sad_properties_->point_value("RHO_A");
         SharedVector sad_rho_b = sad_properties_->point_value("RHO_B");
@@ -204,7 +205,7 @@ void MOSignature::compute_v(int Q) {
 
 
 SharedMatrix MOSignature::sample_v(size_t n_samples, SharedMatrix coords) {
-    SharedMatrix v_samples = SharedMatrix(new Matrix("V_BLOCK", n_samples, num_curve_));
+    SharedMatrix v_samples = SharedMatrix(new Matrix("V_BLOCK", num_curve_, n_samples));
     std::vector<std::vector<size_t> > block_indices = \
             sample_block_subset_indices(n_samples);
 
@@ -217,7 +218,7 @@ SharedMatrix MOSignature::sample_v(size_t n_samples, SharedMatrix coords) {
         std::vector<size_t> indices = block_indices[Q];
         for (size_t i = 0; i < indices.size(); i++, j++) {
             SharedVector vv = v_->get_column(0, indices[i]);
-            v_samples->set_row(0, j, vv);
+            v_samples->set_column(0, j, vv);
             coords->set(j, 0, x[indices[i]]);
             coords->set(j, 1, y[indices[i]]);
             coords->set(j, 2, z[indices[i]]);
@@ -332,6 +333,38 @@ MOSignature::sample_block_subset_indices(size_t n_samples) {
     return block_indices;
 }
 
+SharedMatrix MOSignature::All_coords() {
+    SharedMatrix coords = SharedMatrix(new Matrix("coords", grid()->npoints(), 3));
+    SharedVector col = SharedVector(new Vector("col", grid()->npoints()));
+    col->set(grid_->x());
+    coords->set_column(0, 0, col);
+    col->set(grid_->y());
+    coords->set_column(0, 1, col);
+    col->set(grid_->z());
+    coords->set_column(0, 2, col);
+    return coords;
+}
+
+SharedMatrix MOSignature::All_v() {
+    SharedMatrix out = SharedMatrix(new Matrix("V", num_curve_, grid()->npoints()));
+    double** outp = out->pointer(0);
+    double** vp = v_->pointer(0);
+
+    size_t i = 0;
+    for (int Q = 0; Q < nblocks(); Q++) {
+        shared_ptr<BlockOPoints> block = blocks()[Q];
+        compute_v(Q);
+        for (int b = 0; b < block->npoints(); b++) {
+            for (int a = 0; a < num_curve_; a++) {
+                outp[a][i] = vp[a][b];
+            }
+            i++;
+        }
+    }
+    if (i != grid()->npoints())
+        throw PSIEXCEPTION("Indexing error!");
+    return out;
+}
 
 
 }
