@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+print("Loading v.npz")
 V = np.load('v.npz')['v']
 print(V.shape)
 #for i in range(0, 20):
@@ -12,6 +13,7 @@ print('min,max', V.min(), V.max())
 print('median', np.median(V))
 print('percentiles', np.percentile(V, [1, 10, 25, 50, 75, 90, 99]))
 
+print('Saving sample_v.pdf')
 plt.savefig('sample_v.pdf')
 
 

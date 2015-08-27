@@ -80,7 +80,7 @@ MOSignature::MOSignature(Options& options) :
         outfile->Printf("\nInitializing orbital mixing by chemical potential\n");
         initialize_orbital_mixing_by_chemical_potential(&n_occ);
     } else if (options_.get_str("CURVE").compare("MU_PRIME") == 0) {
-        outfile->Printf("\nInitializing orbital mixing by chemical potential with n_occ_primec\n");
+        outfile->Printf("\nInitializing orbital mixing by chemical potential with n_occ_prime (derivative of occupation number w.r.t chemical potential)\n");
         initialize_orbital_mixing_by_chemical_potential(&n_occ_prime);
     } else {
         throw PSIEXCEPTION("Unknown curve: " + options_.get_str("CURVE") + "\n");
@@ -107,8 +107,8 @@ void MOSignature::initialize_orbital_mixing_by_chemical_potential(
             double na = occ(epsilon_a_->get(j), mu, beta);
             double nb = occ(epsilon_b_->get(j), mu, beta);
             n_electrons += (na+nb);
-            orbital_mixing_a_->set(i, j, na);
-            orbital_mixing_b_->set(i, j, nb);
+            orbital_mixing_a_->set(i, j, (na+nb));
+            orbital_mixing_b_->set(i, j, (na+nb));
         }
         outfile->Printf("  mu=%f n_electrons=%f (%d)\n", mu, n_electrons, (wfn_->nalpha() + wfn_->nbeta()));
     }
@@ -187,7 +187,6 @@ void MOSignature::compute_v(int Q) {
     v_->accumulate_product(orbital_mixing_b_, psi_b);
 
     if (options_.get_bool("SUBTRACT_SAD")) {
-        printf("Subtract SAD\n");
         sad_properties_->compute_points(block);
         SharedVector sad_rho_a = sad_properties_->point_value("RHO_A");
         SharedVector sad_rho_b = sad_properties_->point_value("RHO_B");

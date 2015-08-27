@@ -22,13 +22,20 @@ molecule {
 set {
   basis 6-31g*
   reference uhf
-  dft_grid_name sg0
+  dft_grid_name sg1
 }
 
 set wavekernel {
   filename vectors.npy
-  temp_max 100000.0
   mode sample_v
+  num_sample_descriptors 1000
+
+  curve mu
+  subtract_sad true
+  curve_min -0.5
+  curve_max 0.5
+  temp 10000.0
+  num_curve 20
 }
 
 energy('scf')

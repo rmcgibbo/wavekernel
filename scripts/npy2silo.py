@@ -14,7 +14,7 @@ def main():
     
     mesh = np.asarray(inp['coords'].T, order='C')
     v = np.asarray(inp['v'], order='C')
-    print(v.shape)
+    v = np.clip(v, -5, 10)
     
     if os.path.exists(args.output_silo):
         p.error('File exists: %s' % args.output_silo)
