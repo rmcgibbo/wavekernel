@@ -26,16 +26,16 @@ set {
 }
 
 set wavekernel {
-  filename vectors.npy
+  filename_out vectors.npy
   mode sample_v
   num_sample_descriptors 1000
-
   curve mu
   subtract_sad true
   curve_min -0.5
   curve_max 0.5
-  temp 10000.0
+  temp 1000.0
   num_curve 20
+  print 0
 }
 
 energy('scf')
